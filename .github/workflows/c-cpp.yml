@@ -7,32 +7,37 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  build-wave:
     runs-on: windows-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Build wave.cpp
-        run: |
-          g++ wave.cpp -o wave.exe -lgdi32 -luser32 -mwindows -std=c++17
+        run: g++ wave.cpp -o wave.exe -lgdi32 -luser32 -mwindows -std=c++17
 
+  build-triangulate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Build triangulate.cpp
-        run: |
-          g++ triangulate.cpp -o triangulate.exe -lgdi32 -luser32 -mwindows -std=c++17
-    
-      -name: Build shuffle.cpp
-          run: |
-            g++ shuffle.cpp -o shuffle.exe -lgdi32 -luser32 -mwindows -std=c++17
-      
-      -name: Build particles.cpp
-          run: |
-            g++ particles.cpp -o particles.exe -lgdi32 -luser32 -mwindows -std=c++17
-      
-      - name: Build off.cpp
-        run: |
-          g++ off.cpp -o off.exe -lgdi32 -lmsimg32 -mwindows -std=c++17
+        run: g++ triangulate.cpp -o triangulate.exe -lgdi32 -luser32 -mwindows -std=c++17
 
-      - name: List executables
-        run: dir *.exe
+  build-shuffle:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build shuffle.cpp
+        run: g++ shuffle.cpp -o shuffle.exe -lgdi32 -luser32 -mwindows -std=c++17
+
+  build-particles:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build particles.cpp
+        run: g++ particles.cpp -o particles.exe -lgdi32 -luser32 -mwindows -std=c++17
+
+  build-off:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build off.cpp
+        run: g++ off.cpp -o off.exe -lgdi32 -lmsimg32 -mwindows -std=c++17
