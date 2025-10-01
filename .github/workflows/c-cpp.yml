@@ -22,14 +22,14 @@ jobs:
         run: |
           g++ triangulate.cpp -o triangulate.exe -lgdi32 -luser32 -mwindows -std=c++17
     
-    -name: Build shuffle.cpp
-        run: |
-          g++ shuffle.cpp -o shuffle.exe -lgdi32 -luser32 -mwindows -std=c++17
-    
-    -name: Build particles.cpp
-        run: |
-          g++ particles.cpp -o particles.exe -lgdi32 -luser32 -mwindows -std=c++17
-    
+      -name: Build shuffle.cpp
+          run: |
+            g++ shuffle.cpp -o shuffle.exe -lgdi32 -luser32 -mwindows -std=c++17
+      
+      -name: Build particles.cpp
+          run: |
+            g++ particles.cpp -o particles.exe -lgdi32 -luser32 -mwindows -std=c++17
+      
       - name: Build off.cpp
         run: |
           g++ off.cpp -o off.exe -lgdi32 -lmsimg32 -mwindows -std=c++17
