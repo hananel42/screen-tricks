@@ -1,5 +1,7 @@
 # screen-tricks
-![Demo](/blob/db265bddfe8632bdaf33ab815a460968ebd8cd50/a.gif))
+![demo](https://github.com/hananel42/screen-tricks/blob/db265bddfe8632bdaf33ab815a460968ebd8cd50/a.gif)
+
+
 **Some C++ screen tricks**
 
 This project is a collection of tricks and techniques for working with the screen using C++. The goal is to demonstrate how to control the console display, manipulate output, and perform advanced screen operations with simple code examples.
