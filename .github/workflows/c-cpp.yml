@@ -1,0 +1,26 @@
+name: Build C++ Screen Tricks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build main.cpp
+        run: |
+          g++ main.cpp -o main.exe -lgdi32 -luser32 -mwindows -std=c++17
+
+      - name: Build off.cpp
+        run: |
+          g++ off.cpp -o off.exe -lgdi32 -lmsimg32 -mwindows -std=c++17
+
+      - name: List executables
+        run: dir *.exe
