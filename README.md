@@ -1,5 +1,5 @@
 # screen-tricks
-
+![Demo](a.gif)
 **Some C++ screen tricks**
 
 This project is a collection of tricks and techniques for working with the screen using C++. The goal is to demonstrate how to control the console display, manipulate output, and perform advanced screen operations with simple code examples.
