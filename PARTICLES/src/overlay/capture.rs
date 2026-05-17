@@ -130,11 +130,17 @@ impl From<image::ImageError> for ImageError {
 // Image model
 // ------------------------------
 
+
+
 /// Owned image, premultiplied ARGB in u32 buffer.
 ///
 /// Memory layout is row-major and contiguous. Each pixel is `0xAARRGGBB` as u32,
 /// which on little-endian Windows is the same in-memory byte order expected by the
 /// old DIBSection path.
+
+
+
+
 #[derive(Clone)]
 pub struct FrameImage {
     pub width: i32,
@@ -240,157 +246,9 @@ impl FrameImage {
             origin: 0,
         }
     }
-
-    pub fn crop(&self, x: i32, y: i32, w: i32, h: i32) -> Option<ImageView<'_>> {
-        self.view().crop(x, y, w, h)
-    }
-
-    pub fn resize_nearest(&self, dst_w: i32, dst_h: i32) -> Self {
-        resize_nearest_impl(
-            self.as_slice(),
-            self.width,
-            self.height,
-            self.stride,
-            0,
-            dst_w,
-            dst_h,
-        )
-    }
-
-    pub fn flip_horizontal(&self) -> Self {
-        if self.width <= 0 || self.height <= 0 {
-            return Self::empty();
-        }
-
-        let mut out = vec![0u32; (self.width as usize) * (self.height as usize)];
-        let w = self.width as usize;
-        let h = self.height as usize;
-        for y in 0..h {
-            let src_row = y * self.stride;
-            let dst_row = y * w;
-            for x in 0..w {
-                out[dst_row + x] = self.pixels[src_row + (w - 1 - x)];
-            }
-        }
-
-        Self {
-            width: self.width,
-            height: self.height,
-            stride: self.width as usize,
-            pixels: out.into_boxed_slice(),
-        }
-    }
-
-    pub fn flip_vertical(&self) -> Self {
-        if self.width <= 0 || self.height <= 0 {
-            return Self::empty();
-        }
-
-        let mut out = vec![0u32; (self.width as usize) * (self.height as usize)];
-        let w = self.width as usize;
-        let h = self.height as usize;
-        for y in 0..h {
-            let src_row = y * self.stride;
-            let dst_row = (h - 1 - y) * w;
-            out[dst_row..dst_row + w].copy_from_slice(&self.pixels[src_row..src_row + w]);
-        }
-
-        Self {
-            width: self.width,
-            height: self.height,
-            stride: self.width as usize,
-            pixels: out.into_boxed_slice(),
-        }
-    }
-
-    pub fn rotate_180(&self) -> Self {
-        if self.width <= 0 || self.height <= 0 {
-            return Self::empty();
-        }
-
-        let mut out = vec![0u32; (self.width as usize) * (self.height as usize)];
-        let w = self.width as usize;
-        let h = self.height as usize;
-        for y in 0..h {
-            for x in 0..w {
-                let src = self.pixels[y * self.stride + x];
-                let dx = w - 1 - x;
-                let dy = h - 1 - y;
-                out[dy * w + dx] = src;
-            }
-        }
-
-        Self {
-            width: self.width,
-            height: self.height,
-            stride: self.width as usize,
-            pixels: out.into_boxed_slice(),
-        }
-    }
-
-    pub fn rotate_90_cw(&self) -> Self {
-        rotate_90_cw_impl(self.as_slice(), self.width, self.height, self.stride, 0)
-    }
-
-    pub fn rotate_90_ccw(&self) -> Self {
-        rotate_90_ccw_impl(self.as_slice(), self.width, self.height, self.stride, 0)
-    }
-
-    /// Nearest-neighbor arbitrary rotation around the image center.
-    /// The output is expanded to fit the full rotated bounds.
-    pub fn rotate_degrees(&self, degrees: f32, background: u32) -> Self {
-        rotate_degrees_impl(self.as_slice(), self.width, self.height, self.stride, 0, degrees, background)
-    }
 }
 
-#[derive(Clone, Copy)]
-pub struct FrameRef<'a> {
-    pub width: i32,
-    pub height: i32,
-    pub stride: usize, // in pixels
-    pub pixels: &'a [u32],
-}
 
-impl<'a> FrameRef<'a> {
-    pub fn view(&self) -> ImageView<'a> {
-        ImageView {
-            width: self.width,
-            height: self.height,
-            stride: self.stride,
-            pixels: self.pixels,
-            origin: 0,
-        }
-    }
-
-    pub fn crop(&self, x: i32, y: i32, w: i32, h: i32) -> Option<ImageView<'a>> {
-        self.view().crop(x, y, w, h)
-    }
-
-    pub fn to_owned(&self) -> FrameImage {
-        FrameImage {
-            width: self.width,
-            height: self.height,
-            stride: self.stride,
-            pixels: self.pixels.to_vec().into_boxed_slice(),
-        }
-    }
-
-    pub fn resize_nearest(&self, dst_w: i32, dst_h: i32) -> FrameImage {
-        resize_nearest_impl(self.pixels, self.width, self.height, self.stride, 0, dst_w, dst_h)
-    }
-
-    pub fn rotate_90_cw(&self) -> FrameImage {
-        rotate_90_cw_impl(self.pixels, self.width, self.height, self.stride, 0)
-    }
-
-    pub fn rotate_90_ccw(&self) -> FrameImage {
-        rotate_90_ccw_impl(self.pixels, self.width, self.height, self.stride, 0)
-    }
-
-    pub fn rotate_degrees(&self, degrees: f32, background: u32) -> FrameImage {
-        rotate_degrees_impl(self.pixels, self.width, self.height, self.stride, 0, degrees, background)
-    }
-}
 
 #[derive(Clone, Copy)]
 pub struct ImageView<'a> {
@@ -437,19 +295,231 @@ impl<'a> ImageView<'a> {
     }
 
     pub fn resize_nearest(&self, dst_w: i32, dst_h: i32) -> FrameImage {
-        resize_nearest_impl(self.pixels, self.width, self.height, self.stride, self.origin, dst_w, dst_h)
+        if self.width <= 0 || self.height <= 0 || dst_w <= 0 || dst_h <= 0 {
+            return FrameImage::empty();
+        }
+
+        let mut out = vec![0u32; (dst_w as usize) * (dst_h as usize)];
+        let step_x = ((self.width as i64) << 16) / (dst_w as i64);
+        let step_y = ((self.height as i64) << 16) / (dst_h as i64);
+
+        for dy in 0..dst_h {
+            let sy = (((dy as i64) * step_y) >> 16).clamp(0, (self.height - 1) as i64) as usize;
+            let src_row = self.origin + sy * self.stride;
+            let dst_row = (dy as usize) * (dst_w as usize);
+
+            let mut sx_fp = 0i64;
+            for dx in 0..dst_w {
+                let sx = (sx_fp >> 16).clamp(0, (self.width - 1) as i64) as usize;
+                out[dst_row + (dx as usize)] = self.pixels[src_row + sx];
+                sx_fp += step_x;
+            }
+        }
+
+        FrameImage {
+            width: dst_w,
+            height: dst_h,
+            stride: dst_w as usize,
+            pixels: out.into_boxed_slice(),
+        }
     }
 
     pub fn rotate_90_cw(&self) -> FrameImage {
-        rotate_90_cw_impl(self.pixels, self.width, self.height, self.stride, self.origin)
+        if self.width <= 0 || self.height <= 0 {
+            return FrameImage::empty();
+        }
+
+        let dst_w = self.height;
+        let dst_h = self.width;
+
+        let mut out =
+            vec![0u32; (dst_w as usize) * (dst_h as usize)];
+
+        let sw = self.width as usize;
+        let sh = self.height as usize;
+
+        for y in 0..sh {
+            for x in 0..sw {
+                let src_px =
+                    self.pixels[self.origin + y * self.stride + x];
+
+                let dx = sh - 1 - y;
+                let dy = x;
+
+                out[dy * (dst_w as usize) + dx] = src_px;
+            }
+        }
+
+        FrameImage {
+            width: dst_w,
+            height: dst_h,
+            stride: dst_w as usize,
+            pixels: out.into_boxed_slice(),
+        }
     }
 
     pub fn rotate_90_ccw(&self) -> FrameImage {
-        rotate_90_ccw_impl(self.pixels, self.width, self.height, self.stride, self.origin)
+        if self.width <= 0 || self.height <= 0 {
+            return FrameImage::empty();
+        }
+
+        let dst_w = self.height;
+        let dst_h = self.width;
+
+        let mut out =
+            vec![0u32; (dst_w as usize) * (dst_h as usize)];
+
+        let sw = self.width as usize;
+        let sh = self.height as usize;
+
+        for y in 0..sh {
+            for x in 0..sw {
+                let src_px =
+                    self.pixels[self.origin + y * self.stride + x];
+
+                let dx = y;
+                let dy = sw - 1 - x;
+
+                out[dy * (dst_w as usize) + dx] = src_px;
+            }
+        }
+
+        FrameImage {
+            width: dst_w,
+            height: dst_h,
+            stride: dst_w as usize,
+            pixels: out.into_boxed_slice(),
+        }
     }
 
     pub fn rotate_degrees(&self, degrees: f32, background: u32) -> FrameImage {
-        rotate_degrees_impl(self.pixels, self.width, self.height, self.stride, self.origin, degrees, background)
+        if self.width <= 0 || self.height <= 0 {
+            return FrameImage::empty();
+        }
+
+        let rad = degrees.to_radians();
+        let sin = rad.sin();
+        let cos = rad.cos();
+
+        let sw = self.width as f32;
+        let sh = self.height as f32;
+        let cx = (sw - 1.0) * 0.5;
+        let cy = (sh - 1.0) * 0.5;
+
+        // Rotate the four corners to determine bounds.
+        let corners = [
+            (-cx, -cy),
+            (sw - 1.0 - cx, -cy),
+            (-cx, sh - 1.0 - cy),
+            (sw - 1.0 - cx, sh - 1.0 - cy),
+        ];
+
+        let mut min_x = f32::INFINITY;
+        let mut max_x = f32::NEG_INFINITY;
+        let mut min_y = f32::INFINITY;
+        let mut max_y = f32::NEG_INFINITY;
+
+        for (x, y) in corners {
+            let rx = x * cos - y * sin;
+            let ry = x * sin + y * cos;
+            min_x = min_x.min(rx);
+            max_x = max_x.max(rx);
+            min_y = min_y.min(ry);
+            max_y = max_y.max(ry);
+        }
+
+        let dst_w = (max_x - min_x).ceil().max(1.0) as i32;
+        let dst_h = (max_y - min_y).ceil().max(1.0) as i32;
+        let mut out = vec![background; (dst_w as usize) * (dst_h as usize)];
+
+        let dcx = (dst_w as f32 - 1.0) * 0.5;
+        let dcy = (dst_h as f32 - 1.0) * 0.5;
+
+        let sw_u = self.width as usize;
+        let sh_u = self.height as usize;
+        let _ = (sw_u, sh_u);
+
+        for dy in 0..dst_h {
+            for dx in 0..dst_w {
+                let x = dx as f32 - dcx;
+                let y = dy as f32 - dcy;
+
+                // Map destination -> source (inverse rotation)
+                let src_x = x * cos + y * sin + cx;
+                let src_y = -x * sin + y * cos + cy;
+
+                let sx = src_x.round() as i32;
+                let sy = src_y.round() as i32;
+
+                if sx >= 0 && sx < self.width && sy >= 0 && sy < self.height {
+                    let src_px = self.pixels[self.origin + (sy as usize) * self.stride + (sx as usize)];
+                    out[(dy as usize) * (dst_w as usize) + (dx as usize)] = src_px;
+                }
+            }
+        }
+
+        FrameImage {
+            width: dst_w,
+            height: dst_h,
+            stride: dst_w as usize,
+            pixels: out.into_boxed_slice(),
+        }
+    }
+
+    pub fn flip_horizontal(&self) -> FrameImage {
+        if self.width <= 0 || self.height <= 0 {
+            return FrameImage::empty();
+        }
+
+        let w = self.width as usize;
+        let h = self.height as usize;
+
+        let mut out = vec![0u32; w * h];
+
+        for y in 0..h {
+            let src_row = self.origin + y * self.stride;
+            let dst_row = y * w;
+
+            for x in 0..w {
+                out[dst_row + x] =
+                    self.pixels[src_row + (w - 1 - x)];
+            }
+        }
+
+        FrameImage {
+            width: self.width,
+            height: self.height,
+            stride: w,
+            pixels: out.into_boxed_slice(),
+        }
+    }
+
+    pub fn flip_vertical(&self) -> FrameImage {
+        if self.width <= 0 || self.height <= 0 {
+            return FrameImage::empty();
+        }
+
+        let w = self.width as usize;
+        let h = self.height as usize;
+
+        let mut out = vec![0u32; w * h];
+
+        for y in 0..h {
+            let src_row = self.origin + y * self.stride;
+            let dst_row = (h - 1 - y) * w;
+
+            out[dst_row..dst_row + w]
+                .copy_from_slice(
+                    &self.pixels[src_row..src_row + w]
+                );
+        }
+
+        FrameImage {
+            width: self.width,
+            height: self.height,
+            stride: w,
+            pixels: out.into_boxed_slice(),
+        }
     }
 }
 
@@ -465,6 +535,63 @@ pub trait ImageSource {
     fn origin(&self) -> usize {
         0
     }
+
+    #[inline]
+    fn view(&self) -> ImageView<'_> {
+        ImageView {
+            width: self.width(),
+            height: self.height(),
+            stride: self.stride(),
+            pixels: self.pixels(),
+            origin: self.origin(),
+        }
+    }
+
+
+    #[inline]
+    fn frame(&self) -> FrameImage {
+        self.view().to_owned()
+    }
+
+    #[inline]
+    fn crop(&self, x: i32, y: i32, w: i32, h: i32) -> Option<ImageView<'_>> {
+        self.view().crop(x, y, w, h)
+    }
+
+    #[inline]
+    fn resize_nearest(&self, dst_w: i32, dst_h: i32) -> FrameImage {
+        self.view().resize_nearest(dst_w, dst_h)
+    }
+
+    #[inline]
+    fn rotate_90_cw(&self) -> FrameImage {
+        self.view().rotate_90_cw()
+    }
+
+    #[inline]
+    fn rotate_90_ccw(&self) -> FrameImage {
+        self.view().rotate_90_ccw()
+    }
+
+    #[inline]
+    fn rotate_degrees(&self, degrees: f32, background: u32) -> FrameImage {
+        self.view().rotate_degrees(degrees, background)
+    }
+
+    #[inline]
+    fn flip_horizontal(&self) -> FrameImage {
+        self.view().flip_horizontal()
+    }
+
+    #[inline]
+    fn flip_vertical(&self) -> FrameImage {
+        self.view().flip_vertical()
+    }
+    #[inline]
+    fn to_owned(&self) -> FrameImage {
+        self.frame()
+    }
+
 }
 
 impl ImageSource for FrameImage {
@@ -472,13 +599,6 @@ impl ImageSource for FrameImage {
     fn height(&self) -> i32 { self.height }
     fn stride(&self) -> usize { self.stride }
     fn pixels(&self) -> &[u32] { &self.pixels }
-}
-
-impl<'a> ImageSource for FrameRef<'a> {
-    fn width(&self) -> i32 { self.width }
-    fn height(&self) -> i32 { self.height }
-    fn stride(&self) -> usize { self.stride }
-    fn pixels(&self) -> &[u32] { self.pixels }
 }
 
 impl<'a> ImageSource for ImageView<'a> {
@@ -593,7 +713,7 @@ impl CaptureSession {
 
     /// Captures the session rect into the persistent DIB.
     /// No allocation happens here.
-    pub fn capture(&mut self) -> Option<FrameRef<'_>> {
+    pub fn capture(&mut self) -> Option<ImageView<'_>> {
         unsafe {
             let rop = if self.include_layered_windows {
                 SRCCOPY | CAPTUREBLT
@@ -620,11 +740,12 @@ impl CaptureSession {
             let len = (self.rect.width as usize) * (self.rect.height as usize);
             let pixels = slice::from_raw_parts(self.bits as *const u32, len);
 
-            Some(FrameRef {
+            Some(ImageView {
                 width: self.rect.width,
                 height: self.rect.height,
                 stride: self.rect.width as usize,
                 pixels,
+                origin:0
             })
         }
     }
@@ -677,155 +798,9 @@ fn resize_nearest_impl(
     }
 }
 
-fn rotate_90_cw_impl(
-    pixels: &[u32],
-    src_w: i32,
-    src_h: i32,
-    src_stride: usize,
-    origin: usize,
-) -> FrameImage {
-    if src_w <= 0 || src_h <= 0 {
-        return FrameImage::empty();
-    }
 
-    let dst_w = src_h;
-    let dst_h = src_w;
-    let mut out = vec![0u32; (dst_w as usize) * (dst_h as usize)];
 
-    let sw = src_w as usize;
-    let sh = src_h as usize;
-    for y in 0..sh {
-        for x in 0..sw {
-            let src_px = pixels[origin + y * src_stride + x];
-            let dx = sh - 1 - y;
-            let dy = x;
-            out[dy * (dst_w as usize) + dx] = src_px;
-        }
-    }
 
-    FrameImage {
-        width: dst_w,
-        height: dst_h,
-        stride: dst_w as usize,
-        pixels: out.into_boxed_slice(),
-    }
-}
-
-fn rotate_90_ccw_impl(
-    pixels: &[u32],
-    src_w: i32,
-    src_h: i32,
-    src_stride: usize,
-    origin: usize,
-) -> FrameImage {
-    if src_w <= 0 || src_h <= 0 {
-        return FrameImage::empty();
-    }
-
-    let dst_w = src_h;
-    let dst_h = src_w;
-    let mut out = vec![0u32; (dst_w as usize) * (dst_h as usize)];
-
-    let sw = src_w as usize;
-    let sh = src_h as usize;
-    for y in 0..sh {
-        for x in 0..sw {
-            let src_px = pixels[origin + y * src_stride + x];
-            let dx = y;
-            let dy = sw - 1 - x;
-            out[dy * (dst_w as usize) + dx] = src_px;
-        }
-    }
-
-    FrameImage {
-        width: dst_w,
-        height: dst_h,
-        stride: dst_w as usize,
-        pixels: out.into_boxed_slice(),
-    }
-}
-
-fn rotate_degrees_impl(
-    pixels: &[u32],
-    src_w: i32,
-    src_h: i32,
-    src_stride: usize,
-    origin: usize,
-    degrees: f32,
-    background: u32,
-) -> FrameImage {
-    if src_w <= 0 || src_h <= 0 {
-        return FrameImage::empty();
-    }
-
-    let rad = degrees.to_radians();
-    let sin = rad.sin();
-    let cos = rad.cos();
-
-    let sw = src_w as f32;
-    let sh = src_h as f32;
-    let cx = (sw - 1.0) * 0.5;
-    let cy = (sh - 1.0) * 0.5;
-
-    // Rotate the four corners to determine bounds.
-    let corners = [
-        (-cx, -cy),
-        (sw - 1.0 - cx, -cy),
-        (-cx, sh - 1.0 - cy),
-        (sw - 1.0 - cx, sh - 1.0 - cy),
-    ];
-
-    let mut min_x = f32::INFINITY;
-    let mut max_x = f32::NEG_INFINITY;
-    let mut min_y = f32::INFINITY;
-    let mut max_y = f32::NEG_INFINITY;
-
-    for (x, y) in corners {
-        let rx = x * cos - y * sin;
-        let ry = x * sin + y * cos;
-        min_x = min_x.min(rx);
-        max_x = max_x.max(rx);
-        min_y = min_y.min(ry);
-        max_y = max_y.max(ry);
-    }
-
-    let dst_w = (max_x - min_x).ceil().max(1.0) as i32;
-    let dst_h = (max_y - min_y).ceil().max(1.0) as i32;
-    let mut out = vec![background; (dst_w as usize) * (dst_h as usize)];
-
-    let dcx = (dst_w as f32 - 1.0) * 0.5;
-    let dcy = (dst_h as f32 - 1.0) * 0.5;
-
-    let sw_u = src_w as usize;
-    let sh_u = src_h as usize;
-    let _ = (sw_u, sh_u);
-
-    for dy in 0..dst_h {
-        for dx in 0..dst_w {
-            let x = dx as f32 - dcx;
-            let y = dy as f32 - dcy;
-
-            // Map destination -> source (inverse rotation)
-            let src_x = x * cos + y * sin + cx;
-            let src_y = -x * sin + y * cos + cy;
-
-            let sx = src_x.round() as i32;
-            let sy = src_y.round() as i32;
-
-            if sx >= 0 && sx < src_w && sy >= 0 && sy < src_h {
-                let src_px = pixels[origin + (sy as usize) * src_stride + (sx as usize)];
-                out[(dy as usize) * (dst_w as usize) + (dx as usize)] = src_px;
-            }
-        }
-    }
-
-    FrameImage {
-        width: dst_w,
-        height: dst_h,
-        stride: dst_w as usize,
-        pixels: out.into_boxed_slice(),
-    }
-}
 
 // ------------------------------
 // Loading macros

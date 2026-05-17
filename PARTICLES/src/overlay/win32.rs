@@ -11,6 +11,7 @@ use windows_sys::Win32::{
 };
 use windows_sys::Win32::Graphics::Gdi::UpdateWindow;
 use crate::overlay::canvas::Canvas;
+use crate::overlay::OverlayApp;
 use crate::overlay::state::{
      wide_null, OverlayState,
 };
@@ -26,7 +27,7 @@ pub(crate) const AC_SRC_OVER: u8 = 0x00;
 pub(crate) const AC_SRC_ALPHA: u8 = 0x01;
 pub(crate) const ULW_ALPHA: u32 = 0x0000_0002;
 
-unsafe extern "system" fn wndproc<F>(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT where F:FnMut(&mut Canvas) {
+unsafe extern "system" fn wndproc<A>(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT where A:OverlayApp {
     match msg {
         WM_NCCREATE => {
             let createstruct = lparam as *const CREATESTRUCTW;
@@ -34,7 +35,7 @@ unsafe extern "system" fn wndproc<F>(hwnd: HWND, msg: u32, wparam: WPARAM, lpara
                 return 0;
             }
 
-            let state = (*createstruct).lpCreateParams as *mut OverlayState<F>;
+            let state = (*createstruct).lpCreateParams as *mut OverlayState<A>;
             if state.is_null() {
                 return 0;
             }
@@ -55,7 +56,7 @@ unsafe extern "system" fn wndproc<F>(hwnd: HWND, msg: u32, wparam: WPARAM, lpara
                 return 0;
             }
 
-            let state_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut OverlayState<F>;
+            let state_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut OverlayState<A>;
             if !state_ptr.is_null() {
                 (*state_ptr).render();
                 (*state_ptr).present();
@@ -85,7 +86,7 @@ unsafe extern "system" fn wndproc<F>(hwnd: HWND, msg: u32, wparam: WPARAM, lpara
     }
 }
 
-pub fn run<F>(render:F) where F:FnMut(&mut Canvas){
+pub fn run<A:OverlayApp>(app:A){
     unsafe {
         SetProcessDPIAware();
         let hinstance = GetModuleHandleW(null());
@@ -98,7 +99,7 @@ pub fn run<F>(render:F) where F:FnMut(&mut Canvas){
 
         let mut wc: WNDCLASSW = zeroed();
         wc.style = CS_HREDRAW | CS_VREDRAW;
-        wc.lpfnWndProc = Some(wndproc::<F>);
+        wc.lpfnWndProc = Some(wndproc::<A>);
         wc.hInstance = hinstance;
         wc.lpszClassName = class_name.as_ptr();
         wc.hCursor = LoadCursorW(null_mut(), IDC_ARROW);
@@ -120,7 +121,7 @@ pub fn run<F>(render:F) where F:FnMut(&mut Canvas){
             y,
             width,
             height,
-            render
+            app
         ) {
             Some(s) => s,
             None => return,

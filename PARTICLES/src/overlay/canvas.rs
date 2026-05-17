@@ -1,6 +1,6 @@
 use std::slice;
 
-use crate::overlay::capture::{FrameRef, ImageSource};
+use crate::overlay::capture::ImageSource;
 use font8x8::{UnicodeFonts, BASIC_FONTS};
 
 pub(super) const fn rgba_premul(r: u8, g: u8, b: u8, a: u8) -> u32 {
@@ -70,6 +70,34 @@ impl Canvas {
         }
     }
 
+    pub fn clear_rect(&mut self, x: i32, y: i32, w: i32, h: i32) {
+        if w <= 0 || h <= 0 {
+            return;
+        }
+
+        let x0 = x.max(0);
+        let y0 = y.max(0);
+        let x1 = (x + w).min(self.width);
+        let y1 = (y + h).min(self.height);
+
+        if x0 >= x1 || y0 >= y1 {
+            return;
+        }
+
+        let stride = self.width as usize;
+
+        unsafe {
+            let frame = self.frame_mut();
+
+            for yy in y0..y1 {
+                let row = (yy as usize) * stride;
+                let start = row + (x0 as usize);
+                let end = row + (x1 as usize);
+
+                frame[start..end].fill(0);
+            }
+        }
+    }
     pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32, (r,g,b,a): (u8,u8,u8,u8)) {
         let color = rgba_premul(r,g,b,a);
         if w <= 0 || h <= 0 {

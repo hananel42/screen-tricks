@@ -1,28 +1,26 @@
 use std::{
     ffi::c_void,
     mem::{size_of, zeroed},
-    ptr::null_mut,
-    slice,
+    ptr::null_mut
+    ,
 };
 
 use crate::overlay::canvas::Canvas;
 use crate::overlay::win32::{
     AC_SRC_ALPHA, AC_SRC_OVER, ULW_ALPHA,
 };
-use windows_sys::Win32::Graphics::Gdi::SRCCOPY;
-use windows_sys::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SetProcessDPIAware, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN};
+use crate::overlay::OverlayApp;
 use windows_sys::Win32::{
     Foundation::{HWND, POINT, SIZE},
     Graphics::Gdi::{
-        BitBlt, CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject,
+        CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject,
         GetDC, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
-        BLENDFUNCTION, CAPTUREBLT, DIB_RGB_COLORS, HBITMAP, HDC, HGDIOBJ,
+        BLENDFUNCTION, DIB_RGB_COLORS, HBITMAP, HDC, HGDIOBJ,
     },
     UI::WindowsAndMessaging::UpdateLayeredWindow,
 };
 
-
-pub(super) struct OverlayState<F> where F:FnMut(&mut Canvas){
+pub(super) struct OverlayState<APP> where APP:OverlayApp{
     pub(super) hwnd: HWND,
     mem_dc: HDC,
     dib: HBITMAP,
@@ -30,10 +28,10 @@ pub(super) struct OverlayState<F> where F:FnMut(&mut Canvas){
     canvas: Canvas,
     x: i32,
     y: i32,
-    render_fn: F
+    app: APP
 }
 
-impl<F> Drop for OverlayState<F> where F:FnMut(&mut Canvas) {
+impl<A> Drop for OverlayState<A> where A: OverlayApp {
     fn drop(&mut self) {
         unsafe {
             if !self.mem_dc.is_null() && !self.old_obj.is_null() {
@@ -57,14 +55,14 @@ pub(crate) fn wide_null(s: &str) -> Vec<u16> {
 
 
 
-impl<F> OverlayState<F> where F:FnMut(&mut Canvas) {
+impl<A> OverlayState<A> where A:OverlayApp {
     pub(crate) unsafe fn new(
         hwnd: HWND,
         x: i32,
         y: i32,
         width: i32,
         height: i32,
-        render_fn:F
+        app:A
     ) -> Option<Box<Self>>{
         let screen_dc = GetDC(null_mut());
         if screen_dc.is_null() {
@@ -122,13 +120,13 @@ impl<F> OverlayState<F> where F:FnMut(&mut Canvas) {
             canvas,
             x,
             y,
-            render_fn,
+            app,
         }))
     }
 
 
     pub(crate) fn render(&mut self){
-        (self.render_fn)(&mut self.canvas);
+        self.app.render(&mut self.canvas);
 
     }
 
