@@ -36,9 +36,10 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 // ------------------------------
 // Helpers
 // ------------------------------
-
+pub type Color = (u8,u8,u8,u8); // (r,g,b,a)
 #[inline]
-pub const fn rgba_premul(r: u8, g: u8, b: u8, a: u8) -> u32 {
+pub const fn rgba_premul(color: Color) -> u32 {
+    let (r, g, b, a) = color;
     let a32 = a as u32;
     let r32 = ((r as u32) * a32 + 127) / 255;
     let g32 = ((g as u32) * a32 + 127) / 255;
@@ -158,7 +159,26 @@ impl FrameImage {
             pixels: Box::new([]),
         }
     }
+    pub fn filled(
+        width: i32,
+        height: i32,
+        color: Color,
+    ) -> Result<Self, ImageError> {
+        if width <= 0 || height <= 0 {
+            return Err(ImageError::InvalidDimensions);
+        }
 
+        let color = rgba_premul(color);
+
+        let len = (width as usize) * (height as usize);
+
+        Ok(Self {
+            width,
+            height,
+            stride: width as usize,
+            pixels: vec![color; len].into_boxed_slice(),
+        })
+    }
     pub fn from_raw_premultiplied(width: i32, height: i32, pixels: Vec<u32>) -> Result<Self, ImageError> {
         if width <= 0 || height <= 0 {
             return Err(ImageError::InvalidDimensions);

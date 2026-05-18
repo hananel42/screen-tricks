@@ -6,9 +6,7 @@ use std::{
 };
 
 use crate::overlay::canvas::Canvas;
-use crate::overlay::win32::{
-    AC_SRC_ALPHA, AC_SRC_OVER, ULW_ALPHA,
-};
+use crate::overlay::win32::{EventResult, OverlayContext, OverlayEvent, AC_SRC_ALPHA, AC_SRC_OVER, ULW_ALPHA};
 use crate::overlay::OverlayApp;
 use windows_sys::Win32::{
     Foundation::{HWND, POINT, SIZE},
@@ -20,18 +18,20 @@ use windows_sys::Win32::{
     UI::WindowsAndMessaging::UpdateLayeredWindow,
 };
 
-pub(super) struct OverlayState<APP> where APP:OverlayApp{
+
+pub(super) struct OverlayState{
     pub(super) hwnd: HWND,
     mem_dc: HDC,
     dib: HBITMAP,
     old_obj: HGDIOBJ,
     canvas: Canvas,
+    overlay_context: OverlayContext,
     x: i32,
     y: i32,
-    app: APP
+    app: Box<dyn OverlayApp>,
 }
 
-impl<A> Drop for OverlayState<A> where A: OverlayApp {
+impl Drop for OverlayState {
     fn drop(&mut self) {
         unsafe {
             if !self.mem_dc.is_null() && !self.old_obj.is_null() {
@@ -52,17 +52,14 @@ pub(crate) fn wide_null(s: &str) -> Vec<u16> {
 }
 
 
-
-
-
-impl<A> OverlayState<A> where A:OverlayApp {
+impl OverlayState {
     pub(crate) unsafe fn new(
         hwnd: HWND,
         x: i32,
         y: i32,
         width: i32,
         height: i32,
-        app:A
+        app:Box<dyn OverlayApp>
     ) -> Option<Box<Self>>{
         let screen_dc = GetDC(null_mut());
         if screen_dc.is_null() {
@@ -112,12 +109,18 @@ impl<A> OverlayState<A> where A:OverlayApp {
             width,
             height,
         };
+
         Some(Box::new(Self {
             hwnd,
             mem_dc,
             dib,
             old_obj,
             canvas,
+            overlay_context:OverlayContext{
+                hwnd,
+                width,
+                height
+            },
             x,
             y,
             app,
@@ -125,12 +128,24 @@ impl<A> OverlayState<A> where A:OverlayApp {
     }
 
 
-    pub(crate) fn render(&mut self){
+    pub(super) fn handle_event(&mut self,overlay_event: OverlayEvent) -> EventResult{
+        self.app.handler(overlay_event, &mut self.overlay_context)
+    }
+    pub(super) fn render(&mut self){
         self.app.render(&mut self.canvas);
+    }
+    pub(super) fn init(&mut self){
+        self.overlay_context.hwnd = self.hwnd;
+        self.app.init(&mut self.overlay_context)
+    }
+
+    pub(super) unsafe fn update(&mut self,delta: f32) {
+
+        self.app.update(&mut self.overlay_context,delta);
 
     }
 
-    pub(crate) unsafe fn present(&self) {
+    pub(super) unsafe fn present(&self) {
         let screen_dc = GetDC(null_mut());
         if screen_dc.is_null() {
             return;
@@ -164,4 +179,5 @@ impl<A> OverlayState<A> where A:OverlayApp {
 
         let _ = ReleaseDC(null_mut(), screen_dc);
     }
+
 }
