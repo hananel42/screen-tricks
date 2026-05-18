@@ -10,7 +10,7 @@ The GIF compression ruined the quality a bit; it looks much better in real-time!
 ```bash
 git clone https://github.com/hananel42/screen-tricks.git
 cd screen-tricks/PARTICLES
-cargo run
+cargo run -- -h
 ```
 
 
