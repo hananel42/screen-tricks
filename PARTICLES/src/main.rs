@@ -1,4 +1,10 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+#[link(name = "kernel32")]
+extern "system" {
+    fn AttachConsole(dw_process_id: u32) -> i32;
+}
+const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
+
 mod overlay;
 
 use std::process;
@@ -330,6 +336,10 @@ fn print_help() {
 }
 
 fn main() {
+
+    unsafe {
+        AttachConsole(ATTACH_PARENT_PROCESS);
+    }
 
     let settings = match parse_args() {
         Ok(s) => s,
