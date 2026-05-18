@@ -260,14 +260,14 @@ impl Default for Settings {
         Settings {
             tile_size: 16,
             hold_jitter: 0.7,
-            vx_jitter: 10.0,
-            vy_jitter: 10.0,
-            gravity: 0.0,
+            vx_jitter: 100.0,
+            vy_jitter: 100.0,
+            gravity: 2000.0,
             drag_x: 0.995,
             drag_y: 0.998,
             darken_alpha: 255,
             max_particles: 25_000_000,
-            seconds_per_step: 0.0,
+            seconds_per_step: 0.01,
         }
     }
 }
@@ -324,14 +324,14 @@ fn print_help() {
     println!("Screen Disintegrator Options:");
     println!("  --tile-size <int>         Size of tiles (default: 16)");
     println!("  --hold-jitter <float>     Hold jitter duration (default: 0.7)");
-    println!("  --vx-jitter <float>       X velocity jitter (default: 10.0)");
-    println!("  --vy-jitter <float>       Y velocity jitter (default: 10.0)");
-    println!("  --gravity <float>         Gravity in px/s^2 (default: 0.0)");
+    println!("  --vx-jitter <float>       X velocity jitter (default: 100.0)");
+    println!("  --vy-jitter <float>       Y velocity jitter (default: 100.0)");
+    println!("  --gravity <float>         Gravity in px/s^2 (default: 2000.0)");
     println!("  --drag-x <float>          X drag coefficient (default: 0.995)");
     println!("  --drag-y <float>          Y drag coefficient (default: 0.998)");
     println!("  --darken-alpha <int>      Darken alpha 0-255 (default: 255)");
     println!("  --max-particles <int>     Max particle count (default: 25000000)");
-    println!("  --seconds-per-step <f32>  Seconds per step (default: 0.0)");
+    println!("  --seconds-per-step <f32>  Seconds per step (default: 0.01)");
     println!("  -h, --help                Print this help message");
 }
 
