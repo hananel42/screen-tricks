@@ -14,7 +14,8 @@ cargo run -- -h
 ```
 
 Try playing with the parameters! For example, try changing gravity or making the tiles smaller.
-Command line args:
+
+* Command line args:
 ```
   --tile-size <int>         Size of tiles (default: 16)
   --hold-jitter <float>     Hold jitter duration (default: 0.7)
