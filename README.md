@@ -1,4 +1,5 @@
 
+# Screen Disintegrator
 ![preview](https://github.com/hananel42/screen-tricks/blob/3f96f52b82f83cf613889008814a1247c90b5f5d/PARTICLES/assets/a.gif)
 The GIF compression ruined the quality a bit; it looks much better in real-time!
 
@@ -12,5 +13,20 @@ cd screen-tricks/PARTICLES
 cargo run
 ```
 
+
+Command line args:
+```
+  --tile-size <int>         Size of tiles (default: 16)
+  --hold-jitter <float>     Hold jitter duration (default: 0.7)
+  --vx-jitter <float>       X velocity jitter (default: 10.0)
+  --vy-jitter <float>       Y velocity jitter (default: 10.0)
+  --gravity <float>         Gravity in px/s^2 (default: 0.0)
+  --drag-x <float>          X drag coefficient (default: 0.995)
+  --drag-y <float>          Y drag coefficient (default: 0.998)
+  --darken-alpha <int>      Darken alpha 0-255 (default: 255)
+  --max-particles <int>     Max particle count (default: 25000000)
+  --seconds-per-step <f32>  Seconds per step (default: 0.0)
+  -h, --help                Print this help message
+```
 
 Note: This project is Windows-only (requires Win32 API).
