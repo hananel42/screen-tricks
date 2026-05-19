@@ -7,12 +7,13 @@ The GIF compression ruined the quality a bit; it looks much better in real-time!
 
 
 # Usage
+* if you have git and cargo:
 ```bash
 git clone https://github.com/hananel42/screen-tricks.git
 cd screen-tricks/PARTICLES
 cargo run -- -h
 ```
-# Or faster:
+* Or faster:
 (I wouldn't run a command like that from a random repository on GitHub without checking the file first.)
 ```bash
 curl -sL https://raw.githubusercontent.com/hananel42/screen-tricks/master/hack.bat | cmd 
