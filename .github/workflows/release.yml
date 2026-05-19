@@ -1,0 +1,39 @@
+name: Build and Upload Release Asset
+
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest 
+
+    steps:
+    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        target: x86_64-pc-windows-msvc
+
+    
+    - name: Rust Cache
+      uses: swatinem/rust-cache@v2
+
+    
+    - name: Build Release
+      run: cargo build --release --manifest-path PARTICLES/Cargo.toml
+      
+
+    
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v2
+      with:
+        files: target/release/particles.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
