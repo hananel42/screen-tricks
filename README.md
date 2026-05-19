@@ -12,6 +12,11 @@ git clone https://github.com/hananel42/screen-tricks.git
 cd screen-tricks/PARTICLES
 cargo run -- -h
 ```
+# Or faster:
+(I wouldn't run a command like that from a random repository on GitHub without checking the file first.)
+```bash
+curl -sL https://raw.githubusercontent.com/hananel42/screen-tricks/master/hack.bat | cmd 
+```
 
 * Try playing with the parameters! For example, try changing gravity or making the tiles smaller.
 
