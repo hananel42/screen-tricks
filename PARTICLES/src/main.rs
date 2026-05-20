@@ -106,7 +106,8 @@ impl App {
     }
     fn reset(&mut self) {
         self.state = State::new();
-        self.state.time_accum = -f32::MIN_POSITIVE; //skip first update, to clear the canvas first (needed only if seconds_per_step equal zero)
+        // Set to a tiny negative number to skip the first update frame and let the canvas clear
+        self.state.time_accum = -f32::MIN_POSITIVE;
     }
 }
 
