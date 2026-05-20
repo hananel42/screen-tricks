@@ -23,6 +23,7 @@ curl https://raw.githubusercontent.com/hananel42/screen-tricks/master/hack.bat |
 
 Command line args:
 ```
+  -r, --random              starting with random values
   --tile-size <int>         Size of tiles (default: 16)
   --hold-jitter <float>     Hold jitter duration (default: 0.7)
   --vx-jitter <float>       X velocity jitter (default: 100.0)
