@@ -59,7 +59,7 @@ impl Canvas {
         *dst = (out_a << 24) | (out_r << 16) | (out_g << 8) | out_b;
     }
 
-    pub fn put_pixel(&mut self, x: i32, y: i32, (r,g,b,a): (u8,u8,u8,u8)) {
+    pub fn put_pixel(&mut self, x: i32, y: i32, (r, g, b, a): (u8, u8, u8, u8)) {
         if x < 0 || y < 0 || x >= self.width || y >= self.height {
             return;
         }
@@ -100,8 +100,8 @@ impl Canvas {
             }
         }
     }
-    pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32, (r,g,b,a): (u8,u8,u8,u8)) {
-        let color = rgba_premul(r,g,b,a);
+    pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32, (r, g, b, a): (u8, u8, u8, u8)) {
+        let color = rgba_premul(r, g, b, a);
         if w <= 0 || h <= 0 {
             return;
         }
@@ -137,10 +137,18 @@ impl Canvas {
             }
         }
     }
-    pub fn fill(&mut self,(r,g,b,a): (u8,u8,u8,u8)) {
-        self.fill_rect(0,0,self.width,self.height,(r,g,b,a));
+    pub fn fill(&mut self, (r, g, b, a): (u8, u8, u8, u8)) {
+        self.fill_rect(0, 0, self.width, self.height, (r, g, b, a));
     }
-    pub fn draw_rect_outline(&mut self, x: i32, y: i32, w: i32, h: i32, rgba: (u8, u8, u8, u8), thickness: i32) {
+    pub fn draw_rect_outline(
+        &mut self,
+        x: i32,
+        y: i32,
+        w: i32,
+        h: i32,
+        rgba: (u8, u8, u8, u8),
+        thickness: i32,
+    ) {
         if thickness <= 0 {
             return;
         }
@@ -345,16 +353,13 @@ impl Canvas {
         let inv_scale_y = 1.0 / scale_y;
 
         unsafe {
-
             let dst_stride = self.width as usize;
             let frame = self.frame_mut();
-
 
             for dy in y0..y1 {
                 let dst_row = (dy as usize) * dst_stride;
 
                 for dx in x0..x1 {
-
                     //
                     // screen -> local transformed
                     //
@@ -380,11 +385,7 @@ impl Canvas {
                     // clip
                     //
 
-                    if sx < 0.0
-                        || sy < 0.0
-                        || sx >= src_w as f32
-                        || sy >= src_h as f32
-                    {
+                    if sx < 0.0 || sy < 0.0 || sx >= src_w as f32 || sy >= src_h as f32 {
                         continue;
                     }
 
@@ -395,8 +396,7 @@ impl Canvas {
                     let src_x = sx as usize;
                     let src_y = sy as usize;
 
-                    let src =
-                        src_pixels[src_origin + src_y * src_stride + src_x];
+                    let src = src_pixels[src_origin + src_y * src_stride + src_x];
 
                     let alpha = (src >> 24) as u8;
                     if alpha == 0 {
@@ -484,6 +484,4 @@ impl Canvas {
     //         }
     //     }
     // }
-
-
 }

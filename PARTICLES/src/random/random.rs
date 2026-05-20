@@ -15,7 +15,9 @@ fn hash_u32(mut x: u32) -> u32 {
 }
 impl Random {
     pub fn new() -> Random {
-        Random { seed: unsafe { GetTickCount() } }
+        Random {
+            seed: unsafe { GetTickCount() },
+        }
     }
 
     #[inline(always)]
@@ -33,15 +35,13 @@ impl Random {
     pub fn range(&mut self, min: f32, max: f32) -> f32 {
         self.positive_jitter(max - min) + min
     }
-    pub fn integer(&mut self,max:u32) -> u32 {
-       self.seed = hash_u32(self.seed);
-        self.seed % (max+1) 
+    pub fn integer(&mut self, max: u32) -> u32 {
+        self.seed = hash_u32(self.seed);
+        self.seed % (max + 1)
     }
     #[inline(always)]
     pub fn choose<'a, F>(&mut self, f: &'a [F]) -> &'a F {
         self.seed = hash_u32(self.seed);
         &f[(self.seed as usize) % f.len()]
     }
-
 }
-

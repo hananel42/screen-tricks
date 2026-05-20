@@ -9,11 +9,11 @@ mod overlay;
 mod random;
 use random::Random;
 
-use std::process;
 use lexopt::ValueExt;
-use overlay::{Canvas, CaptureSession, OverlayApp, EventResult, OverlayEvent, OverlayContext, run, FrameImage};
-
-
+use overlay::{
+    run, Canvas, CaptureSession, EventResult, FrameImage, OverlayApp, OverlayContext, OverlayEvent,
+};
+use std::process;
 
 #[derive(Clone)]
 struct PhysicParticleInfo {
@@ -23,22 +23,22 @@ struct PhysicParticleInfo {
     vy: f32,
 }
 struct WaitingParticle {
-    x:i32,
-    y:i32,
-    w:i32,
-    h:i32,
-    delay:f32
+    x: i32,
+    y: i32,
+    w: i32,
+    h: i32,
+    delay: f32,
 }
 enum Particle {
-    Image(FrameImage,PhysicParticleInfo),
-    Waiting(WaitingParticle)
+    Image(FrameImage, PhysicParticleInfo),
+    Waiting(WaitingParticle),
 }
 
 struct State {
     particles: Vec<Particle>,
     revealed_px: i32,
     time_accum: f32,
-    freeze:bool,
+    freeze: bool,
 }
 impl State {
     fn new() -> Self {
@@ -51,7 +51,6 @@ impl State {
     }
 }
 
-
 fn clamp_rect(x: i32, y: i32, w: i32, h: i32, fw: i32, fh: i32) -> (i32, i32, i32, i32) {
     let x = x.clamp(0, fw.max(1) - 1);
     let y = y.clamp(0, fh.max(1) - 1);
@@ -61,31 +60,32 @@ fn clamp_rect(x: i32, y: i32, w: i32, h: i32, fw: i32, fh: i32) -> (i32, i32, i3
 }
 
 struct App {
-    capture:CaptureSession,
-    state:State,
+    capture: CaptureSession,
+    state: State,
     random: Random,
-    settings:Settings
-
+    settings: Settings,
 }
 impl App {
-    fn new(settings:Settings) -> Self {
+    fn new(settings: Settings) -> Self {
         let capture = CaptureSession::new().expect("failed to init capture");
         let state = State::new();
         let random = Random::new();
-        App{capture, state,settings,random}
+        App {
+            capture,
+            state,
+            settings,
+            random,
+        }
     }
 
-
-    fn spawn_band_particles(&mut self, width:i32,height:i32, band_top_y: i32, band_h: i32) {
-
-
+    fn spawn_band_particles(&mut self, width: i32, height: i32, band_top_y: i32, band_h: i32) {
         let actual_h = band_h.clamp(1, height.max(1));
         let top_y = band_top_y.clamp(0, height - actual_h);
 
         for sy in (0..actual_h).step_by(self.settings.tile_size as usize) {
             let src_y = top_y + sy;
             for sx in (0..width).step_by(self.settings.tile_size as usize) {
-                self.spawn_tile_particle( width,height, sx, src_y);
+                self.spawn_tile_particle(width, height, sx, src_y);
             }
         }
 
@@ -95,14 +95,21 @@ impl App {
         }
     }
 
-    fn spawn_tile_particle(&mut self, width:i32,height:i32, src_x: i32, src_y: i32) {
-        let (x, y, w, h) = clamp_rect(src_x, src_y, self.settings.tile_size, self.settings.tile_size, width, height);
-
+    fn spawn_tile_particle(&mut self, width: i32, height: i32, src_x: i32, src_y: i32) {
+        let (x, y, w, h) = clamp_rect(
+            src_x,
+            src_y,
+            self.settings.tile_size,
+            self.settings.tile_size,
+            width,
+            height,
+        );
 
         let delay = self.random.positive_jitter(self.settings.hold_jitter);
 
-
-        self.state.particles.push(Particle::Waiting (WaitingParticle{ x,y,w,h,delay }));
+        self.state
+            .particles
+            .push(Particle::Waiting(WaitingParticle { x, y, w, h, delay }));
     }
     fn reset(&mut self) {
         self.state = State::new();
@@ -111,25 +118,22 @@ impl App {
     }
 }
 
-impl OverlayApp for App{
-
+impl OverlayApp for App {
     fn handler(&mut self, event: OverlayEvent, c: &mut OverlayContext) -> EventResult {
         match event {
             OverlayEvent::KeyDown { vk } => {
                 match vk {
-                    0x1B => { c.close() } //ESC
+                    0x1B => c.close(), //ESC
                     0x20 => {
                         self.state.freeze = !self.state.freeze;
-                        return EventResult::Consumed
+                        return EventResult::Consumed;
                     } //SPACE
                     0x52 => {
                         self.reset();
-                        return EventResult::Consumed
+                        return EventResult::Consumed;
                     } //R
                     _ => {}
                 }
-
-
             }
             OverlayEvent::KeyUp { .. } => {}
             OverlayEvent::MouseMove { .. } => {}
@@ -146,17 +150,18 @@ impl OverlayApp for App{
             self.state.time_accum += delta;
         }
 
-        while self.state.time_accum >= self.settings.seconds_per_step && self.state.revealed_px < fh && !self.state.freeze {
+        while self.state.time_accum >= self.settings.seconds_per_step
+            && self.state.revealed_px < fh
+            && !self.state.freeze
+        {
             let band_h = self.settings.tile_size.min(fh - self.state.revealed_px);
             let band_top_y = fh - self.state.revealed_px - band_h;
-            self.spawn_band_particles( fw, fh, band_top_y, band_h);
+            self.spawn_band_particles(fw, fh, band_top_y, band_h);
             self.state.revealed_px += band_h;
             self.state.time_accum -= self.settings.seconds_per_step;
         }
 
-
         if let Some(frame) = self.capture.capture() {
-
             for p in &mut self.state.particles {
                 match p {
                     Particle::Image(_, PhysicParticleInfo { x, y, vx, vy }) => {
@@ -171,35 +176,35 @@ impl OverlayApp for App{
                             *delay -= delta;
                         }
                         if *delay < 0.0 {
-
-                            *p = Particle::Image(frame.crop(*x, *y, *w, *h).unwrap().to_owned(), PhysicParticleInfo {
-                                x: *x as f32,
-                                y: *y as f32,
-                                vx: self.random.jitter(self.settings.vx_jitter),
-                                vy: self.random.jitter(self.settings.vy_jitter)
-                            })
+                            *p = Particle::Image(
+                                frame.crop(*x, *y, *w, *h).unwrap().to_owned(),
+                                PhysicParticleInfo {
+                                    x: *x as f32,
+                                    y: *y as f32,
+                                    vx: self.random.jitter(self.settings.vx_jitter),
+                                    vy: self.random.jitter(self.settings.vy_jitter),
+                                },
+                            )
                         }
                     }
                 }
             }
         }
         //deAlloc the particles which is out of the screen
-        self.state.particles.retain(|p| {
-            match p {
-                Particle::Image(_, PhysicParticleInfo { x, y, .. }) => {
-                    *x > -self.settings.tile_size as f32
-                        && *x < fw as f32 + self.settings.tile_size as f32
-                        && *y < fh as f32 + self.settings.tile_size as f32
-                }
-                Particle::Waiting(_) => { true }
+        self.state.particles.retain(|p| match p {
+            Particle::Image(_, PhysicParticleInfo { x, y, .. }) => {
+                *x > -self.settings.tile_size as f32
+                    && *x < fw as f32 + self.settings.tile_size as f32
+                    && *y < fh as f32 + self.settings.tile_size as f32
             }
+            Particle::Waiting(_) => true,
         });
     }
 
-fn render(&mut self, canvas: &mut Canvas) {
-    canvas.clear();
+    fn render(&mut self, canvas: &mut Canvas) {
+        canvas.clear();
 
-    let dark_h = self.state.revealed_px;
+        let dark_h = self.state.revealed_px;
         if dark_h > 0 {
             canvas.fill_rect(
                 0,
@@ -211,19 +216,15 @@ fn render(&mut self, canvas: &mut Canvas) {
         }
 
         for p in &self.state.particles {
-
             match &p {
-                Particle::Image(img, PhysicParticleInfo{x,y,..}) => {
-                    canvas.draw_image(img,*x as i32,*y as i32);
+                Particle::Image(img, PhysicParticleInfo { x, y, .. }) => {
+                    canvas.draw_image(img, *x as i32, *y as i32);
                 }
-                Particle::Waiting(WaitingParticle{x,y,..}) => {    canvas.clear_rect(*x,*y,self.settings.tile_size,self.settings.tile_size)}
+                Particle::Waiting(WaitingParticle { x, y, .. }) => {
+                    canvas.clear_rect(*x, *y, self.settings.tile_size, self.settings.tile_size)
+                }
             }
-
-
-
-
         }
-
     }
 }
 
@@ -256,7 +257,6 @@ impl Default for Settings {
         }
     }
 }
-
 
 fn parse_args() -> Result<Settings, lexopt::Error> {
     let mut parser = lexopt::Parser::from_env();
@@ -300,16 +300,16 @@ fn parse_args() -> Result<Settings, lexopt::Error> {
             }
             lexopt::Arg::Short('r') | lexopt::Arg::Long("random") => {
                 let mut random = Random::new();
-                settings = Settings{
-                    tile_size: *random.choose(&[1,4,16,32,64,256]),
-                    hold_jitter: *random.choose(&[1.0,0.1,0.0,0.7,2.0]),
+                settings = Settings {
+                    tile_size: *random.choose(&[1, 4, 16, 32, 64, 256]),
+                    hold_jitter: *random.choose(&[1.0, 0.1, 0.0, 0.7, 2.0]),
                     vx_jitter: random.positive_jitter(700.0),
                     vy_jitter: random.positive_jitter(700.0),
-                    gravity: random.range(-1000.0,3000.0),
-                    drag_x: random.range(0.6,1.0),
-                    drag_y: random.range(0.6,1.0),
-                    darken_alpha: random.integer(100) as u8+155,
-                    seconds_per_step: *random.choose(&[0.0,0.05,1.0,0.1]),
+                    gravity: random.range(-1000.0, 3000.0),
+                    drag_x: random.range(0.6, 1.0),
+                    drag_y: random.range(0.6, 1.0),
+                    darken_alpha: random.integer(100) as u8 + 155,
+                    seconds_per_step: *random.choose(&[0.0, 0.05, 1.0, 0.1]),
                     ..settings
                 }
             }
@@ -336,7 +336,6 @@ fn print_help() {
 }
 
 fn main() {
-
     unsafe {
         AttachConsole(ATTACH_PARENT_PROCESS);
     }
@@ -349,7 +348,6 @@ fn main() {
             process::exit(1);
         }
     };
-
 
     run(App::new(settings));
 }

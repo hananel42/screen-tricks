@@ -1,13 +1,11 @@
-pub mod state;
-mod win32;
 pub mod canvas;
 pub mod capture;
-pub mod ui;
+pub mod state;
 mod text_engine;
+pub mod ui;
+mod win32;
 
-pub use win32::{OverlayApp, run, EventResult, OverlayContext, OverlayEvent,MouseButton};
+pub use win32::{run, EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent};
 
-pub use capture::{CaptureSession,ImageView,FrameImage,ImageSource};
 pub use canvas::Canvas;
-
-
+pub use capture::{CaptureSession, FrameImage, ImageSource, ImageView};

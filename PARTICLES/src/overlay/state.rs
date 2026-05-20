@@ -1,25 +1,25 @@
 use std::{
     ffi::c_void,
     mem::{size_of, zeroed},
-    ptr::null_mut
-    ,
+    ptr::null_mut,
 };
 
 use crate::overlay::canvas::Canvas;
-use crate::overlay::win32::{EventResult, OverlayContext, OverlayEvent, AC_SRC_ALPHA, AC_SRC_OVER, ULW_ALPHA};
+use crate::overlay::win32::{
+    EventResult, OverlayContext, OverlayEvent, AC_SRC_ALPHA, AC_SRC_OVER, ULW_ALPHA,
+};
 use crate::overlay::OverlayApp;
 use windows_sys::Win32::{
     Foundation::{HWND, POINT, SIZE},
     Graphics::Gdi::{
-        CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject,
-        GetDC, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
-        BLENDFUNCTION, DIB_RGB_COLORS, HBITMAP, HDC, HGDIOBJ,
+        CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC,
+        SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, HBITMAP,
+        HDC, HGDIOBJ,
     },
     UI::WindowsAndMessaging::UpdateLayeredWindow,
 };
 
-
-pub(super) struct OverlayState{
+pub(super) struct OverlayState {
     pub(super) hwnd: HWND,
     mem_dc: HDC,
     dib: HBITMAP,
@@ -51,7 +51,6 @@ pub(crate) fn wide_null(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-
 impl OverlayState {
     pub(crate) unsafe fn new(
         hwnd: HWND,
@@ -59,8 +58,8 @@ impl OverlayState {
         y: i32,
         width: i32,
         height: i32,
-        app:Box<dyn OverlayApp>
-    ) -> Option<Box<Self>>{
+        app: Box<dyn OverlayApp>,
+    ) -> Option<Box<Self>> {
         let screen_dc = GetDC(null_mut());
         if screen_dc.is_null() {
             return None;
@@ -81,14 +80,7 @@ impl OverlayState {
         bmi.bmiHeader.biCompression = BI_RGB;
 
         let mut bits: *mut c_void = null_mut();
-        let dib = CreateDIBSection(
-            screen_dc,
-            &bmi,
-            DIB_RGB_COLORS,
-            &mut bits,
-            null_mut(),
-            0,
-        );
+        let dib = CreateDIBSection(screen_dc, &bmi, DIB_RGB_COLORS, &mut bits, null_mut(), 0);
 
         let _ = ReleaseDC(null_mut(), screen_dc);
 
@@ -103,7 +95,7 @@ impl OverlayState {
             let _ = DeleteDC(mem_dc);
             return None;
         }
-        let canvas = Canvas{
+        let canvas = Canvas {
             bits: bits as *mut u32,
             len: (width as usize) * (height as usize),
             width,
@@ -116,10 +108,10 @@ impl OverlayState {
             dib,
             old_obj,
             canvas,
-            overlay_context:OverlayContext{
+            overlay_context: OverlayContext {
                 hwnd,
                 width,
-                height
+                height,
             },
             x,
             y,
@@ -127,22 +119,19 @@ impl OverlayState {
         }))
     }
 
-
-    pub(super) fn handle_event(&mut self,overlay_event: OverlayEvent) -> EventResult{
+    pub(super) fn handle_event(&mut self, overlay_event: OverlayEvent) -> EventResult {
         self.app.handler(overlay_event, &mut self.overlay_context)
     }
-    pub(super) fn render(&mut self){
+    pub(super) fn render(&mut self) {
         self.app.render(&mut self.canvas);
     }
-    pub(super) fn init(&mut self){
+    pub(super) fn init(&mut self) {
         self.overlay_context.hwnd = self.hwnd;
         self.app.init(&mut self.overlay_context)
     }
 
-    pub(super) unsafe fn update(&mut self,delta: f32) {
-
-        self.app.update(&mut self.overlay_context,delta);
-
+    pub(super) unsafe fn update(&mut self, delta: f32) {
+        self.app.update(&mut self.overlay_context, delta);
     }
 
     pub(super) unsafe fn present(&self) {
@@ -151,7 +140,10 @@ impl OverlayState {
             return;
         }
 
-        let dst = POINT { x: self.x, y: self.y };
+        let dst = POINT {
+            x: self.x,
+            y: self.y,
+        };
         let src = POINT { x: 0, y: 0 };
         let size = SIZE {
             cx: self.canvas.width,
@@ -179,5 +171,4 @@ impl OverlayState {
 
         let _ = ReleaseDC(null_mut(), screen_dc);
     }
-
 }

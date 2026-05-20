@@ -25,8 +25,8 @@ use std::{
 use image::ImageReader;
 use windows_sys::Win32::Graphics::Gdi::{
     BitBlt, CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC,
-    SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, CAPTUREBLT, DIB_RGB_COLORS, HBITMAP,
-    HDC, HGDIOBJ, SRCCOPY,
+    SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, CAPTUREBLT, DIB_RGB_COLORS, HBITMAP, HDC,
+    HGDIOBJ, SRCCOPY,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetSystemMetrics, SetProcessDPIAware, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN,
@@ -36,7 +36,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 // ------------------------------
 // Helpers
 // ------------------------------
-pub type Color = (u8,u8,u8,u8); // (r,g,b,a)
+pub type Color = (u8, u8, u8, u8); // (r,g,b,a)
 #[inline]
 pub const fn rgba_premul(color: Color) -> u32 {
     let (r, g, b, a) = color;
@@ -88,7 +88,12 @@ impl Rect {
             if width <= 0 || height <= 0 {
                 None
             } else {
-                Some(Self { x, y, width, height })
+                Some(Self {
+                    x,
+                    y,
+                    width,
+                    height,
+                })
             }
         }
     }
@@ -131,16 +136,11 @@ impl From<image::ImageError> for ImageError {
 // Image model
 // ------------------------------
 
-
-
 /// Owned image, premultiplied ARGB in u32 buffer.
 ///
 /// Memory layout is row-major and contiguous. Each pixel is `0xAARRGGBB` as u32,
 /// which on little-endian Windows is the same in-memory byte order expected by the
 /// old DIBSection path.
-
-
-
 
 #[derive(Clone)]
 pub struct FrameImage {
@@ -159,11 +159,7 @@ impl FrameImage {
             pixels: Box::new([]),
         }
     }
-    pub fn filled(
-        width: i32,
-        height: i32,
-        color: Color,
-    ) -> Result<Self, ImageError> {
+    pub fn filled(width: i32, height: i32, color: Color) -> Result<Self, ImageError> {
         if width <= 0 || height <= 0 {
             return Err(ImageError::InvalidDimensions);
         }
@@ -179,7 +175,11 @@ impl FrameImage {
             pixels: vec![color; len].into_boxed_slice(),
         })
     }
-    pub fn from_raw_premultiplied(width: i32, height: i32, pixels: Vec<u32>) -> Result<Self, ImageError> {
+    pub fn from_raw_premultiplied(
+        width: i32,
+        height: i32,
+        pixels: Vec<u32>,
+    ) -> Result<Self, ImageError> {
         if width <= 0 || height <= 0 {
             return Err(ImageError::InvalidDimensions);
         }
@@ -268,8 +268,6 @@ impl FrameImage {
     }
 }
 
-
-
 #[derive(Clone, Copy)]
 pub struct ImageView<'a> {
     pub width: i32,
@@ -352,16 +350,14 @@ impl<'a> ImageView<'a> {
         let dst_w = self.height;
         let dst_h = self.width;
 
-        let mut out =
-            vec![0u32; (dst_w as usize) * (dst_h as usize)];
+        let mut out = vec![0u32; (dst_w as usize) * (dst_h as usize)];
 
         let sw = self.width as usize;
         let sh = self.height as usize;
 
         for y in 0..sh {
             for x in 0..sw {
-                let src_px =
-                    self.pixels[self.origin + y * self.stride + x];
+                let src_px = self.pixels[self.origin + y * self.stride + x];
 
                 let dx = sh - 1 - y;
                 let dy = x;
@@ -386,16 +382,14 @@ impl<'a> ImageView<'a> {
         let dst_w = self.height;
         let dst_h = self.width;
 
-        let mut out =
-            vec![0u32; (dst_w as usize) * (dst_h as usize)];
+        let mut out = vec![0u32; (dst_w as usize) * (dst_h as usize)];
 
         let sw = self.width as usize;
         let sh = self.height as usize;
 
         for y in 0..sh {
             for x in 0..sw {
-                let src_px =
-                    self.pixels[self.origin + y * self.stride + x];
+                let src_px = self.pixels[self.origin + y * self.stride + x];
 
                 let dx = y;
                 let dy = sw - 1 - x;
@@ -472,7 +466,8 @@ impl<'a> ImageView<'a> {
                 let sy = src_y.round() as i32;
 
                 if sx >= 0 && sx < self.width && sy >= 0 && sy < self.height {
-                    let src_px = self.pixels[self.origin + (sy as usize) * self.stride + (sx as usize)];
+                    let src_px =
+                        self.pixels[self.origin + (sy as usize) * self.stride + (sx as usize)];
                     out[(dy as usize) * (dst_w as usize) + (dx as usize)] = src_px;
                 }
             }
@@ -501,8 +496,7 @@ impl<'a> ImageView<'a> {
             let dst_row = y * w;
 
             for x in 0..w {
-                out[dst_row + x] =
-                    self.pixels[src_row + (w - 1 - x)];
+                out[dst_row + x] = self.pixels[src_row + (w - 1 - x)];
             }
         }
 
@@ -528,10 +522,7 @@ impl<'a> ImageView<'a> {
             let src_row = self.origin + y * self.stride;
             let dst_row = (h - 1 - y) * w;
 
-            out[dst_row..dst_row + w]
-                .copy_from_slice(
-                    &self.pixels[src_row..src_row + w]
-                );
+            out[dst_row..dst_row + w].copy_from_slice(&self.pixels[src_row..src_row + w]);
         }
 
         FrameImage {
@@ -566,7 +557,6 @@ pub trait ImageSource {
             origin: self.origin(),
         }
     }
-
 
     #[inline]
     fn frame(&self) -> FrameImage {
@@ -611,22 +601,39 @@ pub trait ImageSource {
     fn to_owned(&self) -> FrameImage {
         self.frame()
     }
-
 }
 
 impl ImageSource for FrameImage {
-    fn width(&self) -> i32 { self.width }
-    fn height(&self) -> i32 { self.height }
-    fn stride(&self) -> usize { self.stride }
-    fn pixels(&self) -> &[u32] { &self.pixels }
+    fn width(&self) -> i32 {
+        self.width
+    }
+    fn height(&self) -> i32 {
+        self.height
+    }
+    fn stride(&self) -> usize {
+        self.stride
+    }
+    fn pixels(&self) -> &[u32] {
+        &self.pixels
+    }
 }
 
 impl<'a> ImageSource for ImageView<'a> {
-    fn width(&self) -> i32 { self.width }
-    fn height(&self) -> i32 { self.height }
-    fn stride(&self) -> usize { self.stride }
-    fn pixels(&self) -> &[u32] { self.pixels }
-    fn origin(&self) -> usize { self.origin }
+    fn width(&self) -> i32 {
+        self.width
+    }
+    fn height(&self) -> i32 {
+        self.height
+    }
+    fn stride(&self) -> usize {
+        self.stride
+    }
+    fn pixels(&self) -> &[u32] {
+        self.pixels
+    }
+    fn origin(&self) -> usize {
+        self.origin
+    }
 }
 
 // ------------------------------
@@ -664,7 +671,9 @@ impl Drop for CaptureSession {
 
 impl CaptureSession {
     pub fn new() -> Option<Self> {
-        unsafe {SetProcessDPIAware();}
+        unsafe {
+            SetProcessDPIAware();
+        }
         Self::with_rect(Rect::virtual_screen()?, true)
     }
 
@@ -692,14 +701,7 @@ impl CaptureSession {
             bmi.bmiHeader.biCompression = BI_RGB;
 
             let mut bits: *mut c_void = null_mut();
-            let dib = CreateDIBSection(
-                screen_dc,
-                &bmi,
-                DIB_RGB_COLORS,
-                &mut bits,
-                null_mut(),
-                0,
-            );
+            let dib = CreateDIBSection(screen_dc, &bmi, DIB_RGB_COLORS, &mut bits, null_mut(), 0);
 
             if dib.is_null() || bits.is_null() {
                 let _ = DeleteDC(mem_dc);
@@ -765,7 +767,7 @@ impl CaptureSession {
                 height: self.rect.height,
                 stride: self.rect.width as usize,
                 pixels,
-                origin:0
+                origin: 0,
             })
         }
     }
@@ -818,10 +820,6 @@ fn resize_nearest_impl(
     }
 }
 
-
-
-
-
 // ------------------------------
 // Loading macros
 // ------------------------------
@@ -841,5 +839,3 @@ macro_rules! include_image {
             .unwrap_or_else(|e| panic!("failed to decode embedded image {}: {}", $path, e))
     }};
 }
-
-
