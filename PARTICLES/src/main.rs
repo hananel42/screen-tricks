@@ -39,6 +39,7 @@ struct State {
     revealed_px: i32,
     time_accum: f32,
     freeze: bool,
+    skip_update: bool,
 }
 impl State {
     fn new() -> Self {
@@ -47,6 +48,7 @@ impl State {
             revealed_px: 0,
             time_accum: 0.0,
             freeze: false,
+            skip_update: false,
         }
     }
 }
@@ -112,9 +114,12 @@ impl App {
             .push(Particle::Waiting(WaitingParticle { x, y, w, h, delay }));
     }
     fn reset(&mut self) {
-        self.state = State::new();
-        // Set to a tiny negative number to skip the first update frame and let the canvas clear
-        self.state.time_accum = -f32::MIN_POSITIVE;
+        self.state.particles.clear();
+        self.state.revealed_px = 0;
+        self.state.time_accum = 0.0;
+        self.state.freeze = false;
+        self.state.skip_update = true;
+
     }
 }
 
@@ -144,8 +149,10 @@ impl OverlayApp for App {
         EventResult::Propagated
     }
     fn update(&mut self, overlay_context: &mut OverlayContext, delta: f32) {
+        if self.state.skip_update {self.state.skip_update = false; return;}
         let fw = overlay_context.width();
         let fh = overlay_context.height();
+
         if !self.state.freeze {
             self.state.time_accum += delta;
         }
