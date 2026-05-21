@@ -119,7 +119,6 @@ impl App {
         self.state.time_accum = 0.0;
         self.state.freeze = false;
         self.state.skip_update = true;
-
     }
 }
 
@@ -149,7 +148,10 @@ impl OverlayApp for App {
         EventResult::Propagated
     }
     fn update(&mut self, overlay_context: &mut OverlayContext, delta: f32) {
-        if self.state.skip_update {self.state.skip_update = false; return;}
+        if self.state.skip_update {
+            self.state.skip_update = false;
+            return;
+        }
         let fw = overlay_context.width();
         let fh = overlay_context.height();
 
