@@ -1,7 +1,7 @@
 use std::slice;
 
 use crate::overlay::capture::ImageSource;
-use font8x8::{UnicodeFonts, BASIC_FONTS};
+use font8x8::{BASIC_FONTS, UnicodeFonts};
 //use fontdue::Metrics;
 // use crate::overlay::text_engine::{TextEngine, TextMetrics, TextStyle};
 

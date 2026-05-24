@@ -14,7 +14,7 @@ use windows_sys::Win32::{
 
 use crate::overlay::{
     canvas::Canvas,
-    state::{wide_null, OverlayState},
+    state::{OverlayState, wide_null},
 };
 use windows_sys::Win32::Foundation::{HINSTANCE, POINT};
 use windows_sys::Win32::Graphics::Gdi::UpdateWindow;

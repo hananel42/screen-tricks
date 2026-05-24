@@ -1,10 +1,10 @@
-extern "system" {
+unsafe extern "system" {
     fn GetTickCount() -> u32;
 }
 pub struct Random {
     seed: u32,
 }
-const REC_U32_MAX: f32 = 1.0 / u32::MAX as f32; // יחושב בזמן קומפילציה
+const REC_U32_MAX: f32 = 1.0 / u32::MAX as f32;
 fn hash_u32(mut x: u32) -> u32 {
     x ^= x >> 16;
     x = x.wrapping_mul(0x7FEB_352D);

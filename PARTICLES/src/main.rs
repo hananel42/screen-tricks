@@ -1,6 +1,6 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 #[link(name = "kernel32")]
-extern "system" {
+unsafe extern "system" {
     fn AttachConsole(dw_process_id: u32) -> i32;
 }
 const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
@@ -11,16 +11,17 @@ use random::Random;
 
 use lexopt::ValueExt;
 use overlay::{
-    run, Canvas, CaptureSession, EventResult, FrameImage, OverlayApp, OverlayContext, OverlayEvent,
+    Canvas, CaptureSession, EventResult, FrameImage, OverlayApp, OverlayContext, OverlayEvent, run,
 };
 use std::process;
 
 #[derive(Clone)]
-struct PhysicParticleInfo {
+struct AliveParticle {
     x: f32,
     y: f32,
     vx: f32,
     vy: f32,
+    image: FrameImage,
 }
 struct WaitingParticle {
     x: i32,
@@ -29,13 +30,10 @@ struct WaitingParticle {
     h: i32,
     delay: f32,
 }
-enum Particle {
-    Image(FrameImage, PhysicParticleInfo),
-    Waiting(WaitingParticle),
-}
 
 struct State {
-    particles: Vec<Particle>,
+    waiting_particles: Vec<WaitingParticle>,
+    alive_particles: Vec<AliveParticle>,
     revealed_px: i32,
     time_accum: f32,
     freeze: bool,
@@ -44,7 +42,8 @@ struct State {
 impl State {
     fn new() -> Self {
         Self {
-            particles: Vec::with_capacity(20_000),
+            waiting_particles: Vec::with_capacity(20_000),
+            alive_particles: Vec::with_capacity(20_000),
             revealed_px: 0,
             time_accum: 0.0,
             freeze: false,
@@ -91,9 +90,9 @@ impl App {
             }
         }
 
-        if self.state.particles.len() > self.settings.max_particles {
-            let excess = self.state.particles.len() - self.settings.max_particles;
-            self.state.particles.drain(0..excess);
+        if self.state.alive_particles.len() > self.settings.max_particles {
+            let excess = self.state.alive_particles.len() - self.settings.max_particles;
+            self.state.alive_particles.drain(0..excess);
         }
     }
 
@@ -110,11 +109,12 @@ impl App {
         let delay = self.random.positive_jitter(self.settings.hold_jitter);
 
         self.state
-            .particles
-            .push(Particle::Waiting(WaitingParticle { x, y, w, h, delay }));
+            .waiting_particles
+            .push(WaitingParticle { x, y, w, h, delay });
     }
     fn reset(&mut self) {
-        self.state.particles.clear();
+        self.state.alive_particles.clear();
+        self.state.waiting_particles.clear();
         self.state.revealed_px = 0;
         self.state.time_accum = 0.0;
         self.state.freeze = false;
@@ -170,44 +170,45 @@ impl OverlayApp for App {
             self.state.time_accum -= self.settings.seconds_per_step;
         }
 
-        if let Some(frame) = self.capture.capture() {
-            for p in &mut self.state.particles {
-                match p {
-                    Particle::Image(_, PhysicParticleInfo { x, y, vx, vy }) => {
-                        *vy += self.settings.gravity * delta;
-                        *vx *= self.settings.drag_x.powf(delta);
-                        *vy *= self.settings.drag_y.powf(delta);
-                        *x += *vx * delta;
-                        *y += *vy * delta;
-                    }
-                    Particle::Waiting(WaitingParticle { x, y, w, h, delay }) => {
-                        if !self.state.freeze {
-                            *delay -= delta;
-                        }
-                        if *delay < 0.0 {
-                            *p = Particle::Image(
-                                frame.crop(*x, *y, *w, *h).unwrap().to_owned(),
-                                PhysicParticleInfo {
-                                    x: *x as f32,
-                                    y: *y as f32,
-                                    vx: self.random.jitter(self.settings.vx_jitter),
-                                    vy: self.random.jitter(self.settings.vy_jitter),
-                                },
-                            )
-                        }
-                    }
-                }
-            }
+        for particle in &mut self.state.alive_particles {
+            let AliveParticle { x, y, vx, vy, .. } = particle;
+            *vy += self.settings.gravity * delta;
+            *vx *= self.settings.drag_x.powf(delta);
+            *vy *= self.settings.drag_y.powf(delta);
+            *x += *vx * delta;
+            *y += *vy * delta;
         }
+
+        if let Some(frame) = self.capture.capture()
+            && !self.state.freeze
+        {
+            self.state
+                .waiting_particles
+                .retain_mut(|WaitingParticle { x, y, w, h, delay }| {
+                    *delay -= delta;
+                    if *delay < 0.0 {
+                        self.state.alive_particles.push(AliveParticle {
+                            x: *x as f32,
+                            y: *y as f32,
+                            vx: self.random.jitter(self.settings.vx_jitter),
+                            vy: self.random.jitter(self.settings.vy_jitter),
+                            image: frame.crop(*x, *y, *w, *h).unwrap().to_owned(),
+                        });
+                        false
+                    } else {
+                        true
+                    }
+                });
+        }
+
         //deAlloc the particles which is out of the screen
-        self.state.particles.retain(|p| match p {
-            Particle::Image(_, PhysicParticleInfo { x, y, .. }) => {
+        self.state
+            .alive_particles
+            .retain(|AliveParticle { x, y, .. }| {
                 *x > -self.settings.tile_size as f32
                     && *x < fw as f32 + self.settings.tile_size as f32
                     && *y < fh as f32 + self.settings.tile_size as f32
-            }
-            Particle::Waiting(_) => true,
-        });
+            });
     }
 
     fn render(&mut self, canvas: &mut Canvas) {
@@ -224,15 +225,11 @@ impl OverlayApp for App {
             );
         }
 
-        for p in &self.state.particles {
-            match &p {
-                Particle::Image(img, PhysicParticleInfo { x, y, .. }) => {
-                    canvas.draw_image(img, *x as i32, *y as i32);
-                }
-                Particle::Waiting(WaitingParticle { x, y, .. }) => {
-                    canvas.clear_rect(*x, *y, self.settings.tile_size, self.settings.tile_size)
-                }
-            }
+        for WaitingParticle { x, y, .. } in self.state.waiting_particles.iter_mut() {
+            canvas.clear_rect(*x, *y, self.settings.tile_size, self.settings.tile_size)
+        }
+        for AliveParticle { x, y, image, .. } in &self.state.alive_particles {
+            canvas.draw_image(image, *x as i32, *y as i32);
         }
     }
 }

@@ -4,17 +4,17 @@ use std::{
     ptr::null_mut,
 };
 
+use crate::overlay::OverlayApp;
 use crate::overlay::canvas::Canvas;
 use crate::overlay::win32::{
-    EventResult, OverlayContext, OverlayEvent, AC_SRC_ALPHA, AC_SRC_OVER, ULW_ALPHA,
+    AC_SRC_ALPHA, AC_SRC_OVER, EventResult, OverlayContext, OverlayEvent, ULW_ALPHA,
 };
-use crate::overlay::OverlayApp;
 use windows_sys::Win32::{
     Foundation::{HWND, POINT, SIZE},
     Graphics::Gdi::{
-        CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC,
-        SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, BLENDFUNCTION, DIB_RGB_COLORS, HBITMAP,
-        HDC, HGDIOBJ,
+        BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BLENDFUNCTION, CreateCompatibleDC, CreateDIBSection,
+        DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, HBITMAP, HDC, HGDIOBJ, ReleaseDC,
+        SelectObject,
     },
     UI::WindowsAndMessaging::UpdateLayeredWindow,
 };
