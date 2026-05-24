@@ -249,9 +249,6 @@ impl OverlayContext {
     pub fn height(&self) -> i32 {
         self.height
     }
-    pub fn set_render_fps(&self, fps: f32) {
-        todo!()
-    }
     fn mouse_position(&self) -> (i32, i32) {
         unsafe {
             let mut pt = POINT { x: 0, y: 0 };
@@ -268,7 +265,7 @@ impl OverlayContext {
 // ============================================================
 
 pub trait OverlayApp {
-    fn init(&mut self, overlay_context: &mut OverlayContext) {}
+    fn init(&mut self, _overlay_context: &mut OverlayContext) {}
     fn handler(
         &mut self,
         _event: OverlayEvent,
