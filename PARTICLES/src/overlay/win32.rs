@@ -249,7 +249,7 @@ impl OverlayContext {
     pub fn height(&self) -> i32 {
         self.height
     }
-    fn mouse_position(&self) -> (i32, i32) {
+    pub fn mouse_position(&self) -> (i32, i32) {
         unsafe {
             let mut pt = POINT { x: 0, y: 0 };
 
