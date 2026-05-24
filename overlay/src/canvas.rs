@@ -1,8 +1,7 @@
 use std::slice;
 
-
-use font8x8::{BASIC_FONTS, UnicodeFonts};
 use crate::ImageSource;
+use font8x8::{BASIC_FONTS, UnicodeFonts};
 //use fontdue::Metrics;
 // use crate::overlay::text_engine::{TextEngine, TextMetrics, TextStyle};
 
@@ -427,14 +426,14 @@ impl Canvas {
     pub fn draw_image<T: ImageSource + ?Sized>(&mut self, img: &T, dst_x: i32, dst_y: i32) {
         self.draw_image_scaled(img, dst_x, dst_y, img.width(), img.height());
     }
-    
+
     #[inline(always)]
     pub fn get_width(&self) -> i32 {
         self.width
     }
     #[inline(always)]
     pub fn get_height(&self) -> i32 {
-        self.height 
+        self.height
     }
     // pub fn draw_text_engine(&mut self, engine: &TextEngine, x: i32, y: i32, text: &str, style: &TextStyle, ) {
     //     engine.draw(self, x, y, text, style);

@@ -258,15 +258,13 @@ impl OverlayContext {
             (pt.x, pt.y)
         }
     }
-    pub fn hide_from_capture(&self,hide: bool) {
+    pub fn hide_from_capture(&self, hide: bool) {
         unsafe {
             if hide {
-                SetWindowDisplayAffinity(self.hwnd,WDA_EXCLUDEFROMCAPTURE);
+                SetWindowDisplayAffinity(self.hwnd, WDA_EXCLUDEFROMCAPTURE);
+            } else {
+                SetWindowDisplayAffinity(self.hwnd, WDA_NONE);
             }
-            else {
-                SetWindowDisplayAffinity(self.hwnd,WDA_NONE);
-            }
-
         }
     }
 }
