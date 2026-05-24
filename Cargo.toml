@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "overlay",
+    "random",
+    "particles", "wave",
+]
+resolver = "3"

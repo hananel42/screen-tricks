@@ -1,7 +1,8 @@
 use std::slice;
 
-use crate::overlay::capture::ImageSource;
+
 use font8x8::{BASIC_FONTS, UnicodeFonts};
+use crate::ImageSource;
 //use fontdue::Metrics;
 // use crate::overlay::text_engine::{TextEngine, TextMetrics, TextStyle};
 
@@ -16,11 +17,19 @@ pub(super) const fn rgba_premul(r: u8, g: u8, b: u8, a: u8) -> u32 {
 pub struct Canvas {
     pub(super) bits: *mut u32,
     pub(super) len: usize,
-    pub(crate) width: i32,
-    pub(crate) height: i32,
+    pub(super) width: i32,
+    pub(super) height: i32,
 }
 
 impl Canvas {
+    #[inline(always)]
+    pub fn width(&self) -> i32 {
+        self.width
+    }
+    #[inline(always)]
+    pub fn height(&self) -> i32 {
+        self.height
+    }
     unsafe fn frame_mut(&mut self) -> &mut [u32] {
         slice::from_raw_parts_mut(self.bits, self.len)
     }
@@ -418,7 +427,15 @@ impl Canvas {
     pub fn draw_image<T: ImageSource + ?Sized>(&mut self, img: &T, dst_x: i32, dst_y: i32) {
         self.draw_image_scaled(img, dst_x, dst_y, img.width(), img.height());
     }
-
+    
+    #[inline(always)]
+    pub fn get_width(&self) -> i32 {
+        self.width
+    }
+    #[inline(always)]
+    pub fn get_height(&self) -> i32 {
+        self.height 
+    }
     // pub fn draw_text_engine(&mut self, engine: &TextEngine, x: i32, y: i32, text: &str, style: &TextStyle, ) {
     //     engine.draw(self, x, y, text, style);
     // }

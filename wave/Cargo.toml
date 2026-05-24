@@ -1,5 +1,5 @@
 [package]
-name = "particles"
+name = "wave"
 version = "0.1.0"
 edition = "2024"
 
@@ -9,7 +9,7 @@ random = {path = "../random"}
 lexopt = "0.3.2"
 
 [[bin]]
-name = "particles"
+name = "wave"
 path = "src/main.rs"
 
 

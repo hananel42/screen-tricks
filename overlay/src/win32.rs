@@ -12,7 +12,7 @@ use windows_sys::Win32::{
     UI::WindowsAndMessaging::*,
 };
 
-use crate::overlay::{
+use crate::{
     canvas::Canvas,
     state::{OverlayState, wide_null},
 };

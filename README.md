@@ -1,6 +1,6 @@
 
 # Screen Disintegrator
-![preview](PARTICLES/assets/a.gif)
+![preview](assets/a.gif)
 The GIF compression ruined the quality a bit; it looks much better in real-time!
 
 

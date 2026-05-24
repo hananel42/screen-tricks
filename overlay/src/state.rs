@@ -4,9 +4,9 @@ use std::{
     ptr::null_mut,
 };
 
-use crate::overlay::OverlayApp;
-use crate::overlay::canvas::Canvas;
-use crate::overlay::win32::{
+use crate::OverlayApp;
+use crate::canvas::Canvas;
+use crate::win32::{
     AC_SRC_ALPHA, AC_SRC_OVER, EventResult, OverlayContext, OverlayEvent, ULW_ALPHA,
 };
 use windows_sys::Win32::{

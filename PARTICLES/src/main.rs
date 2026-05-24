@@ -5,8 +5,7 @@ unsafe extern "system" {
 }
 const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
 
-mod overlay;
-mod random;
+
 use random::Random;
 
 use lexopt::ValueExt;
@@ -225,8 +224,8 @@ impl OverlayApp for App {
         if dark_h > 0 {
             canvas.fill_rect(
                 0,
-                canvas.height - dark_h,
-                canvas.width,
+                canvas.height() - dark_h,
+                canvas.width(),
                 dark_h,
                 (0, 0, 0, self.settings.darken_alpha),
             );
