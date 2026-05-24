@@ -118,6 +118,9 @@ impl App {
 }
 
 impl OverlayApp for App {
+    fn init(&mut self, overlay_context: &mut OverlayContext) {
+        overlay_context.hide_from_capture(true);
+    }
     fn handler(&mut self, event: OverlayEvent, c: &mut OverlayContext) -> EventResult {
         match event {
             OverlayEvent::KeyDown { vk } => {
