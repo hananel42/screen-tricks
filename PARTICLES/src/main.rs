@@ -125,15 +125,24 @@ impl OverlayApp for App {
         match event {
             OverlayEvent::KeyDown { vk } => {
                 match vk {
-                    0x1B => c.close(), //ESC
+                    0x1B => c.close(), //ESC - Exit
                     0x20 => {
                         self.state.freeze = !self.state.freeze;
                         return EventResult::Consumed;
-                    } //SPACE
+                    } //SPACE - Stop
                     0x52 => {
                         self.reset();
                         return EventResult::Consumed;
-                    } //R
+                    } //R - Reset
+
+                    x if x == 'D' as u32 => {
+                        println!("----Debug----");
+                        println!("alive particles: {:#?}", self.state.alive_particles.len());
+                        println!("waiting particles: {:#?}", self.state.waiting_particles.len());
+                        println!("screen size: {},{}",c.height(),c.width());
+                        println!("tile size: {}",self.settings.tile_size);
+                        return EventResult::Consumed;
+                    }//D - Debug
                     _ => {}
                 }
             }
