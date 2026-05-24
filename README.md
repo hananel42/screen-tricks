@@ -33,7 +33,7 @@ Command line args:
   --drag-y <float>          Y drag coefficient (default: 0.998)
   --darken-alpha <int>      Darken alpha 0-255 (default: 255)
   --max-particles <int>     Max particle count (default: 25000000)
-  --seconds-per-step <f32>  Seconds per step (default: 0.01)
+  --seconds-per-step <f32>  Seconds per step (default: 0.1)
   -h, --help                Print this help message
 ```
 

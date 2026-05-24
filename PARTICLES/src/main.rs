@@ -254,7 +254,7 @@ impl Default for Settings {
             drag_y: 0.998,
             darken_alpha: 255,
             max_particles: 25_000_000,
-            seconds_per_step: 0.01,
+            seconds_per_step: 0.1,
         }
     }
 }
@@ -332,7 +332,7 @@ fn print_help() {
     println!("  --drag-y <float>          Y drag coefficient (default: 0.998)");
     println!("  --darken-alpha <int>      Darken alpha 0-255 (default: 255)");
     println!("  --max-particles <int>     Max particle count (default: 25000000)");
-    println!("  --seconds-per-step <f32>  Seconds per step (default: 0.01)");
+    println!("  --seconds-per-step <f32>  Seconds per step (default: 0.1)");
     println!("  -h, --help                Print this help message");
 }
 
