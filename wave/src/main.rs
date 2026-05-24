@@ -8,7 +8,7 @@ const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
 use random::Random;
 
 use lexopt::ValueExt;
-use overlay::{Canvas, CaptureSession, EventResult, FrameImage, OverlayApp, OverlayContext, OverlayEvent, run, MouseButton, ImageSource};
+use overlay::{Canvas, CaptureSession, EventResult, FrameImage, OverlayApp, OverlayContext, OverlayEvent, run, MouseButton, ImageSource, ImageView};
 use std::process;
 // מבנה נתונים לייצוג גל מעגלי בודד
 struct Ripple {
@@ -20,7 +20,6 @@ struct Ripple {
 
 struct State {
     ripples: Vec<Ripple>,
-    current_frame: Option<FrameImage>,
     freeze: bool,
 }
 
@@ -28,7 +27,6 @@ impl State {
     fn new() -> Self {
         Self {
             ripples: Vec::with_capacity(10),
-            current_frame: None,
             freeze: false,
         }
     }
@@ -61,7 +59,6 @@ impl App {
 
     fn reset(&mut self) {
         self.state.ripples.clear();
-        self.state.current_frame = None;
         self.state.freeze = false;
     }
 }
@@ -85,8 +82,7 @@ impl OverlayApp for App {
                 } // R
                 _ => {}
             },
-            // הערה: בהנחה שרכיב ה-Backend שלכם מעביר את קואורדינטות העכבר בתוך ה-Enum של הלחצן
-            // במידה והם מונגשים דרך פונקציה אחרת (למשל context.mouse_pos()), ניתן להתאים זאת בקלות.
+
             OverlayEvent::MouseDown { button: MouseButton::Left } => {
                 if !self.state.freeze {
                     let (x,y) = c.mouse_position();
@@ -104,6 +100,7 @@ impl OverlayApp for App {
     }
 
     fn update(&mut self, _overlay_context: &mut OverlayContext, delta: f32) {
+
         if !self.state.freeze {
             // עדכון מצב הגלים הקיימים וסינון גלים שדעכו לחלוטין
             let speed = self.settings.wave_speed;
@@ -115,23 +112,20 @@ impl OverlayApp for App {
                 ripple.amplitude > 0.1 // נשמור על הגל רק אם הוא עדיין משפיע
             });
 
-            // לכידת מסך רציפה
-            if let Some(frame) = self.capture.capture() {
-                self.state.current_frame = Some(frame.to_owned());
-            }
+
         }
     }
 
     fn render(&mut self, canvas: &mut Canvas) {
-        canvas.clear();
+        canvas.fill((0,0,0,255));
 
-        if let Some(ref frame) = self.state.current_frame {
+        if let Some(frame) = self.capture.capture() {
             let fw = canvas.width();
             let fh = canvas.height();
 
             // אופטימיזציה קריטית: אם אין גלים פעילים, נצייר את הפריים המלא ישירות ללא חישובים מיותרים
             if self.state.ripples.is_empty() {
-                canvas.draw_image(frame, 0, 0);
+                canvas.draw_image(&frame, 0, 0);
                 return;
             }
 
@@ -153,9 +147,10 @@ impl OverlayApp for App {
 
                         if distance > 0.0 {
                             // בדיקה האם האריח נמצא בטווח חזית הגל
-                            let dist_from_wave = (distance - ripple.radius).abs();
-                            if dist_from_wave < thickness {
+
+                            if distance < ripple.radius {
                                 // יצירת עיוות סינוס חלק שחולף בתוך עובי הגל
+                                let dist_from_wave = (distance - ripple.radius).abs();
                                 let normalized_dist = dist_from_wave / thickness;
                                 let wave_factor = (normalized_dist * std::f32::consts::PI).cos();
 
