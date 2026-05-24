@@ -89,11 +89,6 @@ impl App {
                 self.spawn_tile_particle(width, height, sx, src_y);
             }
         }
-
-        if self.state.alive_particles.len() > self.settings.max_particles {
-            let excess = self.state.alive_particles.len() - self.settings.max_particles;
-            self.state.alive_particles.drain(0..excess);
-        }
     }
 
     fn spawn_tile_particle(&mut self, width: i32, height: i32, src_x: i32, src_y: i32) {
@@ -186,7 +181,7 @@ impl OverlayApp for App {
                 .waiting_particles
                 .retain_mut(|WaitingParticle { x, y, w, h, delay }| {
                     *delay -= delta;
-                    if *delay < 0.0 {
+                    if *delay < 0.0 && self.state.alive_particles.len() < self.settings.max_particles{
                         self.state.alive_particles.push(AliveParticle {
                             x: *x as f32,
                             y: *y as f32,
