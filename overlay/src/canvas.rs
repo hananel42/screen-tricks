@@ -2,8 +2,6 @@ use std::slice;
 
 use crate::capture::ImageSource;
 use font8x8::{BASIC_FONTS, UnicodeFonts};
-//use fontdue::Metrics;
-// use crate::overlay::text_engine::{TextEngine, TextMetrics, TextStyle};
 
 pub(super) const fn rgba_premul(r: u8, g: u8, b: u8, a: u8) -> u32 {
     let a32 = a as u32;
@@ -13,6 +11,7 @@ pub(super) const fn rgba_premul(r: u8, g: u8, b: u8, a: u8) -> u32 {
     (a32 << 24) | (r32 << 16) | (g32 << 8) | b32
 }
 
+/// A `Canvas` represents a 2D bitmap surface composed of pixels stored as a flat array of 32-bit integers.
 pub struct Canvas {
     pub(super) bits: *mut u32,
     pub(super) len: usize,
@@ -21,52 +20,26 @@ pub struct Canvas {
 }
 
 impl Canvas {
+    /// Returns the width of the canvas as an `i32`.
     #[inline(always)]
     pub fn width(&self) -> i32 {
         self.width
     }
+    /// Returns the height of the canvas as an `i32`.
     #[inline(always)]
     pub fn height(&self) -> i32 {
         self.height
     }
-    unsafe fn frame_mut(&mut self) -> &mut [u32] {
-        slice::from_raw_parts_mut(self.bits, self.len)
-    }
 
+
+    /// fills the canvas with (0,0,0,0).
     pub fn clear(&mut self) {
         unsafe {
             self.frame_mut().fill(0);
         }
     }
 
-    fn blend_pixel(dst: &mut u32, src: u32) {
-        let sa = (src >> 24) & 0xFF;
-        if sa == 0 {
-            return;
-        }
-        if sa == 255 {
-            *dst = src;
-            return;
-        }
-
-        let inv = 255 - sa;
-
-        let sb = src & 0xFF;
-        let sg = (src >> 8) & 0xFF;
-        let sr = (src >> 16) & 0xFF;
-        let da = (*dst >> 24) & 0xFF;
-        let db = *dst & 0xFF;
-        let dg = (*dst >> 8) & 0xFF;
-        let dr = (*dst >> 16) & 0xFF;
-
-        let out_b = sb + (db * inv + 127) / 255;
-        let out_g = sg + (dg * inv + 127) / 255;
-        let out_r = sr + (dr * inv + 127) / 255;
-        let out_a = sa + (da * inv + 127) / 255;
-
-        *dst = (out_a << 24) | (out_r << 16) | (out_g << 8) | out_b;
-    }
-
+    /// Writes a premultiplied RGBA pixel at (x, y) iff at bounds.
     pub fn put_pixel(&mut self, x: i32, y: i32, (r, g, b, a): (u8, u8, u8, u8)) {
         if x < 0 || y < 0 || x >= self.width || y >= self.height {
             return;
@@ -80,6 +53,8 @@ impl Canvas {
         }
     }
 
+
+    /// Fills the given rect with (0,0,0,0).
     pub fn clear_rect(&mut self, x: i32, y: i32, w: i32, h: i32) {
         if w <= 0 || h <= 0 {
             return;
@@ -108,6 +83,8 @@ impl Canvas {
             }
         }
     }
+
+    /// Fills the given rect with the given color.
     pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32, (r, g, b, a): (u8, u8, u8, u8)) {
         let color = rgba_premul(r, g, b, a);
         if w <= 0 || h <= 0 {
@@ -145,9 +122,16 @@ impl Canvas {
             }
         }
     }
+
+    /// Fills the canvas with specific color.
     pub fn fill(&mut self, (r, g, b, a): (u8, u8, u8, u8)) {
-        self.fill_rect(0, 0, self.width, self.height, (r, g, b, a));
+        unsafe {
+            self.frame_mut().fill(rgba_premul(r,g,b,a));
+        }
+
     }
+
+    /// Draws an outline around a given rectangle.
     pub fn draw_rect_outline(
         &mut self,
         x: i32,
@@ -167,6 +151,27 @@ impl Canvas {
         self.fill_rect(x + w - thickness, y, thickness, h, rgba);
     }
 
+    /// Draws a character at the specified position with a given scale and color.
+    ///
+    /// This function renders a character from a predefined font set onto the canvas.
+    /// The character is drawn with the specified scale (each pixel is expanded by this factor),
+    /// and filled with the provided RGBA color.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The x-coordinate (in pixels) where the character should be drawn.
+    /// * `y` - The y-coordinate (in pixels) where the character should be drawn.
+    /// * `ch` - The character to draw. If not found in the font, the '?' character is used as a fallback.
+    /// * `scale` - The scaling factor for each pixel of the character. Must be at least 1.
+    /// * `rgba` - A tuple of four `u8` values representing the red, green, blue, and alpha components
+    ///            of the color to use for drawing the character.
+    ///
+    /// # Behavior
+    ///
+    /// - If the character is not found in the built-in font set, the '?' character is used instead.
+    /// - The character is drawn as a block of pixels, with each bit in the font data representing a pixel.
+    /// - The drawing is performed using `fill_rect`, which fills a rectangle with the specified color.
+    /// - The scale is clamped to a minimum of 1 to avoid invalid rendering.
     pub fn draw_char(&mut self, x: i32, y: i32, ch: char, scale: i32, rgba: (u8, u8, u8, u8)) {
         let scale = scale.max(1);
         let glyph = BASIC_FONTS.get(ch).or_else(|| BASIC_FONTS.get('?'));
@@ -190,6 +195,17 @@ impl Canvas {
         }
     }
 
+    /// Draws text at a specified position with a given scale and color.
+    ///
+    /// This function renders a string of text at the specified (x, y) coordinates, with each character drawn at the appropriate position based on the character's width and the provided scale.
+    ///
+    /// - `x`: The horizontal position (in pixels) where the text should start.
+    /// - `y`: The vertical position (in pixels) where the text should start.
+    /// - `text`: The string of characters to be rendered.
+    /// - `scale`: The scale factor for the font size. Must be at least 1. A higher value increases the size of the text.
+    /// - `rgba`: A 4-tuple representing the red, green, blue, and alpha components of the text color (each 0-255).
+    ///
+    ///
     pub fn draw_text(&mut self, x: i32, y: i32, text: &str, scale: i32, rgba: (u8, u8, u8, u8)) {
         let scale = scale.max(1);
         let advance = 8 * scale + scale;
@@ -211,6 +227,24 @@ impl Canvas {
         }
     }
 
+    /// Draws an image scaled to fit within a destination rectangle.
+    ///
+    /// This function scales an image source (`img`) and draws it onto the destination surface at the specified coordinates
+    /// (`dst_x`, `dst_y`) with the given dimensions (`dst_w`, `dst_h`). The scaling is performed using integer
+    /// fixed-point arithmetic to avoid expensive floating-point divisions per pixel.
+    ///
+    /// # Arguments
+    ///
+    /// * `img` - A reference to an image source that implements `ImageSource`.
+    /// * `dst_x` - The x-coordinate (in pixels) of the top-left corner of the destination rectangle.
+    /// * `dst_y` - The y-coordinate (in pixels) of the top-left corner of the destination rectangle.
+    /// * `dst_w` - The width (in pixels) of the destination rectangle.
+    /// * `dst_h` - The height (in pixels) of the destination rectangle.
+    ///
+    /// # Behavior
+    ///
+    /// - If any dimension of the destination or source image is non-positive, the function returns early.
+    /// - The destination rectangle is clamped to the bounds of the target surface.
     #[inline]
     pub fn draw_image_scaled<T: ImageSource + ?Sized>(
         &mut self,
@@ -274,25 +308,33 @@ impl Canvas {
             }
         }
     }
+
+
+    /// Draws an image transformed by scaling, rotation, and pivoting, using nearest-neighbor sampling.
+    ///
+    /// This function applies a 2D transformation to an image source (scaling, rotation around a pivot point),
+    /// then renders the transformed image onto a destination buffer (e.g., a frame). The transformation is
+    /// applied relative to a specified pivot point in the source image, and the final output is clipped
+    /// to the bounds of the destination.
+    ///
+    /// # Arguments
+    ///
+    /// * `img` - A reference to the image source (must implement `ImageSource`).
+    /// * `dst_x`, `dst_y` - The screen coordinates of the pivot point for the transformed image.
+    /// * `scale_x`, `scale_y` - The scaling factors in the x and y directions.
+    /// * `rotation` - The rotation angle in radians (positive is counterclockwise).
+    /// * `pivot_x`, `pivot_y` - The coordinates within the source image at which to pivot the transformation.
+    ///
+    /// # Behavior
+    ///
+    /// - If the source image has zero or negative dimensions, or if either scale factor is near zero,
+    ///   the function returns early without drawing.
+    /// - The corners of the source image are transformed using the specified pivot, scale, and rotation.
+    /// - The bounding box of the transformed image is computed and clipped to the destination bounds.
+    /// - The destination image is updated using nearest-neighbor sampling with alpha blending.
     #[inline]
-    pub fn draw_image_transformed<T: ImageSource + ?Sized>(
-        &mut self,
-        img: &T,
-
-        // position of pivot on screen
-        dst_x: f32,
-        dst_y: f32,
-
-        // scaling
-        scale_x: f32,
-        scale_y: f32,
-
-        // rotation in radians
-        rotation: f32,
-
-        // pivot inside source image
-        pivot_x: f32,
-        pivot_y: f32,
+    pub fn draw_image_transformed<T: ImageSource + ?Sized>(&mut self, img: &T, dst_x: f32,
+        dst_y: f32, scale_x: f32, scale_y: f32, rotation: f32, pivot_x: f32, pivot_y: f32,
     ) {
         let src_w = img.width();
         let src_h = img.height();
@@ -422,82 +464,46 @@ impl Canvas {
             }
         }
     }
+
+
+
+    /// Draws an image as is at a given position.
     #[inline]
     pub fn draw_image<T: ImageSource + ?Sized>(&mut self, img: &T, dst_x: i32, dst_y: i32) {
         self.draw_image_scaled(img, dst_x, dst_y, img.width(), img.height());
     }
 
-    #[inline(always)]
-    pub fn get_width(&self) -> i32 {
-        self.width
+    unsafe fn frame_mut(&mut self) -> &mut [u32] {
+        unsafe {
+            slice::from_raw_parts_mut(self.bits, self.len)
+        }
     }
-    #[inline(always)]
-    pub fn get_height(&self) -> i32 {
-        self.height
+
+    fn blend_pixel(dst: &mut u32, src: u32) {
+        let sa = (src >> 24) & 0xFF;
+        if sa == 0 {
+            return;
+        }
+        if sa == 255 {
+            *dst = src;
+            return;
+        }
+
+        let inv = 255 - sa;
+
+        let sb = src & 0xFF;
+        let sg = (src >> 8) & 0xFF;
+        let sr = (src >> 16) & 0xFF;
+        let da = (*dst >> 24) & 0xFF;
+        let db = *dst & 0xFF;
+        let dg = (*dst >> 8) & 0xFF;
+        let dr = (*dst >> 16) & 0xFF;
+
+        let out_b = sb + (db * inv + 127) / 255;
+        let out_g = sg + (dg * inv + 127) / 255;
+        let out_r = sr + (dr * inv + 127) / 255;
+        let out_a = sa + (da * inv + 127) / 255;
+
+        *dst = (out_a << 24) | (out_r << 16) | (out_g << 8) | out_b;
     }
-    // pub fn draw_text_engine(&mut self, engine: &TextEngine, x: i32, y: i32, text: &str, style: &TextStyle, ) {
-    //     engine.draw(self, x, y, text, style);
-    // }
-    //
-    // pub fn measure_text_engine(&self, engine: &TextEngine, text: &str, style: &TextStyle, ) -> TextMetrics {
-    //     engine.measure(text, style)
-    // }
-    //
-    // pub(super) fn blit_glyph(
-    //     &mut self,
-    //     x: i32,
-    //     y: i32,
-    //     metrics: &Metrics,
-    //     bitmap: &[u8],
-    //     color: (u8, u8, u8, u8),
-    // ) {
-    //     let (r, g, b, a) = color;
-    //     if a == 0 || metrics.width == 0 || metrics.height == 0 {
-    //         return;
-    //     }
-    //
-    //     let canvas_w = self.width;
-    //     let canvas_h = self.height;
-    //
-    //     // fontdue bitmap is top-down; place top-left using xmin / ymin / height
-    //     let dst_x0 = x + metrics.xmin;
-    //     let dst_y0 = y - metrics.ymin - metrics.height as i32;
-    //
-    //     unsafe {
-    //         let stride = self.width as usize;
-    //         let frame = self.frame_mut();
-    //
-    //
-    //         for row in 0..metrics.height {
-    //             let dy = dst_y0 + row as i32;
-    //             if dy < 0 || dy >= canvas_h {
-    //                 continue;
-    //             }
-    //
-    //             let src_row = row * metrics.width;
-    //             let dst_row = (dy as usize) * stride;
-    //
-    //             for col in 0..metrics.width {
-    //                 let dx = dst_x0 + col as i32;
-    //                 if dx < 0 || dx >= canvas_w {
-    //                     continue;
-    //                 }
-    //
-    //                 let cov = bitmap[src_row + col];
-    //                 if cov == 0 {
-    //                     continue;
-    //                 }
-    //
-    //                 let out_a = ((a as u16) * (cov as u16) / 255) as u8;
-    //                 if out_a == 0 {
-    //                     continue;
-    //                 }
-    //
-    //                 let src = rgba_premul(r, g, b, out_a);
-    //                 let idx = dst_row + dx as usize;
-    //                 Canvas::blend_pixel(&mut frame[idx], src);
-    //             }
-    //         }
-    //     }
-    // }
 }

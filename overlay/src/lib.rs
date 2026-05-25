@@ -8,10 +8,6 @@
 //! ## Public Types and Functions
 //!
 //! - `Canvas`: A rendering surface for drawing visuals (e.g., text, shapes) on the overlay.
-//! - `CaptureSession`: A session for capturing screen frames, enabling real-time video or image streaming.
-//! - `FrameImage`: A captured frame of screen content, typically represented as a pixel buffer.
-//! - `ImageSource`: Defines where screen content is sourced from (e.g., full screen, specific window).
-//! - `ImageView`: A view into a captured image, allowing for manipulation or display.
 //! - `EventResult`: Result type for event handling, indicating success or failure.
 //! - `MouseButton`: Enum representing mouse button states (e.g., left, right, middle).
 //! - `OverlayApp`: A trait or struct representing a full overlay application.

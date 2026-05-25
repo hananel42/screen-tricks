@@ -1,3 +1,11 @@
+//! A rust module for creating and managing images and screenshots.
+//! 
+//! ## Public Types and Functions
+//!
+//! - `CaptureSession`: A session for capturing screen frames, enabling real-time video or image streaming.
+//! - `FrameImage`: A captured frame of screen content, typically represented as a pixel buffer.
+//! - `ImageSource`: Defines where screen content is sourced from (e.g., full screen, specific window).
+//! - `ImageView`: A view into a captured image, allowing for manipulation or display.
 use std::{
     ffi::c_void,
     mem::{size_of, zeroed},
