@@ -10,12 +10,12 @@ use random::Random;
 use lexopt::ValueExt;
 use overlay::{Canvas, CaptureSession, EventResult, FrameImage, OverlayApp, OverlayContext, OverlayEvent, run, MouseButton, ImageSource, ImageView};
 use std::process;
-// מבנה נתונים לייצוג גל מעגלי בודד
+
 struct Ripple {
     center_x: f32,
     center_y: f32,
     radius: f32,
-    amplitude: f32, // עוצמת העיוות הנוכחית (דועכת עם הזמן)
+    amplitude: f32,
 }
 
 struct State {
@@ -102,14 +102,14 @@ impl OverlayApp for App {
     fn update(&mut self, _overlay_context: &mut OverlayContext, delta: f32) {
 
         if !self.state.freeze {
-            // עדכון מצב הגלים הקיימים וסינון גלים שדעכו לחלוטין
+
             let speed = self.settings.wave_speed;
             let decay = self.settings.decay;
 
             self.state.ripples.retain_mut(|ripple| {
                 ripple.radius += speed * delta;
                 ripple.amplitude -= decay * delta;
-                ripple.amplitude > 0.1 // נשמור על הגל רק אם הוא עדיין משפיע
+                ripple.amplitude > 0.1
             });
 
 
@@ -123,7 +123,7 @@ impl OverlayApp for App {
             let fw = canvas.width();
             let fh = canvas.height();
 
-            // אופטימיזציה קריטית: אם אין גלים פעילים, נצייר את הפריים המלא ישירות ללא חישובים מיותרים
+
             if self.state.ripples.is_empty() {
                 canvas.draw_image(&frame, 0, 0);
                 return;
@@ -139,22 +139,22 @@ impl OverlayApp for App {
                     let mut shift_x = 0.0;
                     let mut shift_y = 0.0;
 
-                    // חישוב ההשפעה המצטברת של כל הגלים הפעילים על האריח הנוכחי
+
                     for ripple in &self.state.ripples {
                         let dx = tx as f32 - ripple.center_x;
                         let dy = ty as f32 - ripple.center_y;
                         let distance = (dx * dx + dy * dy).sqrt();
 
                         if distance > 0.0 {
-                            // בדיקה האם האריח נמצא בטווח חזית הגל
+
 
                             if distance < ripple.radius {
-                                // יצירת עיוות סינוס חלק שחולף בתוך עובי הגל
+
                                 let dist_from_wave = (distance - ripple.radius).abs();
                                 let normalized_dist = dist_from_wave / thickness;
                                 let wave_factor = (normalized_dist * std::f32::consts::PI).cos();
 
-                                // כיוון ההיסט הוא כלפי חוץ ממרכז הגל
+
                                 let force = wave_factor * ripple.amplitude;
                                 shift_x += (dx / distance) * force;
                                 shift_y += (dy / distance) * force;
@@ -162,14 +162,14 @@ impl OverlayApp for App {
                         }
                     }
 
-                    // חישוב מיקום המקור ממנו נחתוך את התמונה (מיושר לפי ההיסט שחושב)
+
                     let src_x = tx + shift_x as i32;
                     let src_y = ty + shift_y as i32;
 
-                    // הגנה מפני יציאה מגבולות הפריים שנלכד
+
                     let (cx, cy, cw, ch) = clamp_rect(src_x, src_y, tile_size, tile_size, fw, fh);
 
-                    // חיתוך האריח המעוות וציורו במיקום המקורי שלו על המסך
+
                     if let Some(strip) = frame.crop(cx, cy, cw, ch) {
                         canvas.draw_image(&strip, tx, ty);
                     }
@@ -180,21 +180,21 @@ impl OverlayApp for App {
 }
 
 struct Settings {
-    tile_size: i32,       // גודל האריח (ככל שקטן יותר - האיכות גבוהה יותר, אך דורש יותר כוח עיבוד)
-    wave_speed: f32,      // מהירות התפשטות הגל בפיקסלים לשנייה
-    wave_thickness: f32,  // עובי רצועת הגל
-    max_amplitude: f32,   // עוצמת העיוות ההתחלתית
-    decay: f32,           // קצב דעיכת הגל
+    tile_size: i32,
+    wave_speed: f32,
+    wave_thickness: f32,
+    max_amplitude: f32,
+    decay: f32,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            tile_size: 8,         // איזון מעולה בין רזולוציית גל לביצועים
-            wave_speed: 600.0,    // מהירות התפשטות מהירה וטבעית
-            wave_thickness: 60.0, // רוחב הגל עצמו
-            max_amplitude: 30.0,  // הסטה מקסימלית של עד 30 פיקסלים
-            decay: 40.0,          // הגל ייעלם תוך פחות משנייה
+            tile_size: 8,
+            wave_speed: 600.0,
+            wave_thickness: 60.0,
+            max_amplitude: 30.0,
+            decay: 40.0,
         }
     }
 }
