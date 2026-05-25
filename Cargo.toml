@@ -3,6 +3,6 @@ members = [
     "overlay",
     "random",
     "particles",
-    "wave",
+    "wave"
 ]
 resolver = "3"

@@ -5,12 +5,14 @@ unsafe extern "system" {
 }
 const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
 
-
 use random::Random;
 
 use lexopt::ValueExt;
 use overlay::{
-    Canvas, CaptureSession, EventResult, FrameImage, OverlayApp, OverlayContext, OverlayEvent, run,
+    Canvas, EventResult, OverlayApp, OverlayContext, OverlayEvent, run,
+    capture::{
+        CaptureSession,FrameImage
+    }
 };
 use std::process;
 
@@ -137,11 +139,14 @@ impl OverlayApp for App {
                     x if x == 'D' as u32 => {
                         println!("----Debug----");
                         println!("alive particles: {:#?}", self.state.alive_particles.len());
-                        println!("waiting particles: {:#?}", self.state.waiting_particles.len());
-                        println!("screen size: {},{}",c.height(),c.width());
-                        println!("tile size: {}",self.settings.tile_size);
+                        println!(
+                            "waiting particles: {:#?}",
+                            self.state.waiting_particles.len()
+                        );
+                        println!("screen size: {},{}", c.height(), c.width());
+                        println!("tile size: {}", self.settings.tile_size);
                         return EventResult::Consumed;
-                    }//D - Debug
+                    } //D - Debug
                     _ => {}
                 }
             }
@@ -192,7 +197,9 @@ impl OverlayApp for App {
                 .waiting_particles
                 .retain_mut(|WaitingParticle { x, y, w, h, delay }| {
                     *delay -= delta;
-                    if *delay < 0.0 && self.state.alive_particles.len() < self.settings.max_particles{
+                    if *delay < 0.0
+                        && self.state.alive_particles.len() < self.settings.max_particles
+                    {
                         self.state.alive_particles.push(AliveParticle {
                             x: *x as f32,
                             y: *y as f32,

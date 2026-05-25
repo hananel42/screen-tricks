@@ -8,7 +8,10 @@ const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
 use random::Random;
 
 use lexopt::ValueExt;
-use overlay::{run, Canvas, CaptureSession, EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent};
+use overlay::{
+    capture::CaptureSession,
+    Canvas, EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent, run,
+};
 use std::process;
 
 struct Ripple {
@@ -84,9 +87,11 @@ impl OverlayApp for App {
                 _ => {}
             },
 
-            OverlayEvent::MouseDown { button: MouseButton::Left } => {
+            OverlayEvent::MouseDown {
+                button: MouseButton::Left,
+            } => {
                 if !self.state.freeze {
-                    let (x,y) = c.mouse_position();
+                    let (x, y) = c.mouse_position();
                     self.state.ripples.push(Ripple {
                         center_x: x as f32,
                         center_y: y as f32,
@@ -101,7 +106,9 @@ impl OverlayApp for App {
     }
 
     fn update(&mut self, _overlay_context: &mut OverlayContext, delta: f32) {
-        if self.state.freeze {return;}
+        if self.state.freeze {
+            return;
+        }
 
         let speed = self.settings.wave_speed;
         let decay = self.settings.decay;
@@ -111,18 +118,17 @@ impl OverlayApp for App {
             ripple.amplitude -= decay * delta;
             ripple.amplitude > 0.1
         });
-
-
     }
 
     fn render(&mut self, canvas: &mut Canvas) {
-        if self.state.freeze {return;}
-        canvas.fill((0,0,0,255));
+        if self.state.freeze {
+            return;
+        }
+        canvas.fill((0, 0, 0, 255));
 
         if let Some(frame) = self.capture.capture() {
             let fw = canvas.width();
             let fh = canvas.height();
-
 
             if self.state.ripples.is_empty() {
                 canvas.draw_image(&frame, 0, 0);
@@ -135,10 +141,8 @@ impl OverlayApp for App {
             // מעבר על פני כל המסך בגריד של אריחים
             for ty in (0..fh).step_by(tile_size as usize) {
                 for tx in (0..fw).step_by(tile_size as usize) {
-
                     let mut shift_x = 0.0;
                     let mut shift_y = 0.0;
-
 
                     for ripple in &self.state.ripples {
                         let dx = tx as f32 - ripple.center_x;
@@ -146,14 +150,10 @@ impl OverlayApp for App {
                         let distance = (dx * dx + dy * dy).sqrt();
 
                         if distance > 0.0 {
-
-
                             if distance < ripple.radius {
-
                                 let dist_from_wave = (distance - ripple.radius).abs();
                                 let normalized_dist = dist_from_wave / thickness;
                                 let wave_factor = (normalized_dist * std::f32::consts::PI).cos();
-
 
                                 let force = wave_factor * ripple.amplitude;
                                 shift_x += (dx / distance) * force;
@@ -162,13 +162,10 @@ impl OverlayApp for App {
                         }
                     }
 
-
                     let src_x = tx + shift_x as i32;
                     let src_y = ty + shift_y as i32;
 
-
                     let (cx, cy, cw, ch) = clamp_rect(src_x, src_y, tile_size, tile_size, fw, fh);
-
 
                     if let Some(strip) = frame.crop(cx, cy, cw, ch) {
                         canvas.draw_image(&strip, tx, ty);

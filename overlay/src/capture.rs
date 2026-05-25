@@ -38,7 +38,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 // ------------------------------
 pub type Color = (u8, u8, u8, u8); // (r,g,b,a)
 #[inline]
-pub const fn rgba_premul(color: Color) -> u32 {
+const fn rgba_premul(color: Color) -> u32 {
     let (r, g, b, a) = color;
     let a32 = a as u32;
     let r32 = ((r as u32) * a32 + 127) / 255;
@@ -59,16 +59,33 @@ fn premul_rgba_bytes_to_u32(px: &[u8]) -> u32 {
     (a << 24) | (r << 16) | (g << 8) | b
 }
 
-#[inline]
-fn u32_to_rgba_bytes(px: u32) -> [u8; 4] {
-    [
-        ((px >> 16) & 0xFF) as u8,
-        ((px >> 8) & 0xFF) as u8,
-        (px & 0xFF) as u8,
-        ((px >> 24) & 0xFF) as u8,
-    ]
-}
 
+/// A 2D rectangle defined by its top-left corner (x, y) and dimensions (width, height).
+///
+/// This struct represents a rectangle in a 2D coordinate system where the origin (0, 0) is typically
+/// in the top-left corner. The rectangle is defined by its position and size, with the
+/// top-left corner at (x, y) and extending right and down by width and height respectively.
+///
+/// # Fields
+///
+/// * `x` - The x-coordinate of the top-left corner of the rectangle.
+/// * `y` - The y-coordinate of the top-left corner of the rectangle.
+/// * `width` - The width of the rectangle (horizontal size).
+/// * `height` - The height of the rectangle (vertical size).
+///
+/// # Examples
+///
+/// ```
+/// let rect = Rect { x: 10, y: 20, width: 100, height: 50 };
+/// ```
+///
+/// This creates a rectangle positioned at (10, 20) with a width of 100 and a height of 5.0.
+///
+/// # Notes
+///
+/// All fields are of type `i32`, allowing for large coordinate values. The rectangle does not
+/// perform bounds checking or validation on construction. It is the caller's responsibility to
+/// ensure valid dimensions and positions.
 #[derive(Clone, Copy, Debug)]
 pub struct Rect {
     pub x: i32,
@@ -78,7 +95,7 @@ pub struct Rect {
 }
 
 impl Rect {
-    pub fn virtual_screen() -> Option<Self> {
+    fn virtual_screen() -> Option<Self> {
         unsafe {
             let x = GetSystemMetrics(SM_XVIRTUALSCREEN);
             let y = GetSystemMetrics(SM_YVIRTUALSCREEN);
@@ -99,6 +116,32 @@ impl Rect {
     }
 }
 
+/// Error type representing various failure modes when handling images.
+///
+/// This enum encapsulates errors that can occur during image operations such as
+/// reading, decoding, or validating image data. It provides a structured way to
+/// handle different types of errors with clear error sources.
+///
+/// # Variants
+///
+/// * `Io(std::io::Error)`: An I/O error occurred while reading or writing image data.
+/// * `Decode(image::ImageError)`: A decoding error occurred when parsing image data using the `image` crate.
+/// * `InvalidDimensions`: The image dimensions are invalid (e.g., negative width/height).
+/// * `Empty`: The image data is empty or has zero size.
+///
+/// # Example
+///
+/// ```rust
+/// use your_module::ImageError;
+///
+/// match load_image("path/to/image.png") {
+///     Ok(img) => println!("Image loaded successfully"),
+///     Err(ImageError::Io(e)) => eprintln!("I/O error: {}", e),
+///     Err(ImageError::Decode(e)) => eprintln!("Decode error: {}", e),
+///     Err(ImageError::InvalidDimensions) => eprintln!("Invalid image dimensions"),
+///     Err(ImageError::Empty) => eprintln!("Image is empty"),
+/// }
+/// ```
 #[derive(Debug)]
 pub enum ImageError {
     Io(std::io::Error),
@@ -136,11 +179,29 @@ impl From<image::ImageError> for ImageError {
 // Image model
 // ------------------------------
 
-/// Owned image, premultiplied ARGB in u32 buffer.
+/// Represents a frame image with width, height, and pixel data.
 ///
-/// Memory layout is row-major and contiguous. Each pixel is `0xAARRGGBB` as u32,
-/// which on little-endian Windows is the same in-memory byte order expected by the
-/// old DIBSection path.
+/// This struct encapsulates a 2D image frame with dimensions and pixel data.
+///
+/// Fields:
+/// * `width`: The width of the image in pixels (i32).
+/// * `height`: The height of the image in pixels (i32).
+/// * `stride`: The number of pixels per row in the pixel buffer, which may differ from the width due to padding (usize).
+/// * `pixels`: A boxed slice of 32-bit unsigned integers representing the pixel data. Each pixel value is typically interpreted as a 32-bit color value (RGBA).
+///
+/// Note: The stride field allows for non-standard row alignment, which is useful for optimized memory access or when working with formats that require padding.
+///
+/// Example usage:
+/// ```rust
+/// let frame = FrameImage {
+///     width: 640,
+///     height: 480,
+///     stride: 0,
+///     pixels: vec![0u32; 640 * 480].into_boxed_slice(),
+/// };
+/// ```
+///
+/// This struct is designed to be cloned, enabling efficient copying of image data in memory-intensive operations.
 
 #[derive(Clone)]
 pub struct FrameImage {
@@ -151,6 +212,15 @@ pub struct FrameImage {
 }
 
 impl FrameImage {
+    /// Creates a new empty image with zero dimensions and no pixels.
+    ///
+    /// This function returns an image instance with width, height, and stride all set to 0,
+    /// and an empty pixel buffer. The resulting image has no pixels and is effectively
+    /// an empty canvas.
+    ///
+    /// # Returns
+    ///
+    /// A new `Self` instance representing an empty image.
     pub fn empty() -> Self {
         Self {
             width: 0,
@@ -159,6 +229,34 @@ impl FrameImage {
             pixels: Box::new([]),
         }
     }
+    /// Creates a new filled image with the specified width, height, and color.
+    ///
+    /// # Arguments
+    ///
+    /// * `width` - The width of the image in pixels. Must be positive.
+    /// * `height` - The height of the image in pixels. Must be positive.
+    /// * `color` - The color to fill the image with. The color is automatically converted to premultiplied alpha (premul) format.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the newly created image if dimensions are valid, otherwise an `ImageError`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ImageError::InvalidDimensions` if either `width` or `height` is less than or equal to zero.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let image = Image::filled(100, 100, Color::red());
+    /// assert!(image.is_ok());
+    /// ```
+    ///
+    /// # Notes
+    ///
+    /// - The image's pixel data is stored in row-major order.
+    /// - The stride is equal to the width in bytes, ensuring proper row alignment.
+    /// - The color is converted to premultiplied alpha format internally to ensure correct blending behavior.
     pub fn filled(width: i32, height: i32, color: Color) -> Result<Self, ImageError> {
         if width <= 0 || height <= 0 {
             return Err(ImageError::InvalidDimensions);
@@ -175,6 +273,31 @@ impl FrameImage {
             pixels: vec![color; len].into_boxed_slice(),
         })
     }
+    /// Creates a new image from raw premultiplied pixels.
+    ///
+    /// This function constructs an image from a vector of raw 32-bit unsigned integer pixels,
+    /// where each pixel is assumed to be premultiplied (i.e., alpha is already combined with RGB).
+    ///
+    /// # Arguments
+    ///
+    /// * `width` - The width of the image in pixels. Must be positive.
+    /// * `height` - The height of the image in pixels. Must be positive.
+    /// * `pixels` - A vector of `u32` values representing the raw pixel data.
+    ///
+    /// # Returns
+    ///
+    /// A `Result<Self, ImageError>` where:
+    /// * `Ok(image)` if the dimensions and pixel count match the expected size.
+    /// * `Err(ImageError::InvalidDimensions)` if the width or height is non-positive,
+    ///   or if the number of pixels does not match `width * height`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let pixels = vec![0xFF0000FF, 0xFF00FF00, 0xFFFF0000, 0xFFFF0000];
+    /// let image = Image::from_raw_premultiplied(2, 2, pixels);
+    /// assert!(image.is_ok());
+    /// ```
     pub fn from_raw_premultiplied(
         width: i32,
         height: i32,
@@ -195,6 +318,32 @@ impl FrameImage {
         })
     }
 
+    /// Creates a new `Self` instance from a slice of RGBA bytes.
+    ///
+    /// This function interprets a byte array containing RGBA pixel data and converts it into a
+    /// pixel buffer with premultiplied alpha. The input must be exactly `width * height * 4` bytes
+    /// long, with each pixel represented as 4 bytes (R, G, B, A).
+    ///
+    /// # Arguments
+    ///
+    /// * `width` - The width of the image in pixels. Must be positive.
+    /// * `height` - The height of the image in pixels. Must be positive.
+    /// * `rgba_bytes` - A slice of bytes containing RGBA pixel data in row-major order.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the newly created image instance, or an `ImageError` if:
+    /// - `width` or `height` is non-positive.
+    /// - The length of `rgba_bytes` does not match `width * height * 4`.
+    ///
+    /// # Notes
+    ///
+    /// - The input byte array is assumed to be in row-major order, with each pixel represented
+    ///   as `[R, G, B, A]` (each component 8 bits).
+    /// - The resulting pixel values are stored as premultiplied RGBA (`premul_rgba`) in a 32-bit
+    ///   integer format (i.e., `R * A / 255`, etc.).
+    /// - The output image has a stride equal to the width in pixels, and the pixel data is stored
+    ///   in a boxed slice for efficient memory access.
     pub fn from_bytes_rgba(width: i32, height: i32, rgba_bytes: &[u8]) -> Result<Self, ImageError> {
         if width <= 0 || height <= 0 {
             return Err(ImageError::InvalidDimensions);
@@ -268,13 +417,18 @@ impl FrameImage {
     }
 }
 
+/// A view into a buffer of 32-bit unsigned integers representing image pixels.
+///
+/// This struct provides a safe and efficient way to access pixel data from a source buffer,
+/// with support for arbitrary strides and origin offsets. It is designed to be used with
+/// image data that may not be stored in a row-major format or may start at a non-zero offset.
 #[derive(Clone, Copy)]
 pub struct ImageView<'a> {
-    pub width: i32,
-    pub height: i32,
-    pub stride: usize, // in pixels, stride of the underlying source buffer
-    pub pixels: &'a [u32],
-    pub origin: usize, // pixel offset from pixels[0]
+    width: i32,
+    height: i32,
+    stride: usize, // in pixels, stride of the underlying source buffer
+    pixels: &'a [u32],
+    origin: usize, // pixel offset from pixels[0]
 }
 
 impl<'a> ImageView<'a> {
@@ -778,52 +932,36 @@ impl CaptureSession {
     }
 }
 
-// ------------------------------
-// Transform helpers
-// ------------------------------
-
-fn resize_nearest_impl(
-    pixels: &[u32],
-    src_w: i32,
-    src_h: i32,
-    src_stride: usize,
-    origin: usize,
-    dst_w: i32,
-    dst_h: i32,
-) -> FrameImage {
-    if src_w <= 0 || src_h <= 0 || dst_w <= 0 || dst_h <= 0 {
-        return FrameImage::empty();
-    }
-
-    let mut out = vec![0u32; (dst_w as usize) * (dst_h as usize)];
-    let step_x = ((src_w as i64) << 16) / (dst_w as i64);
-    let step_y = ((src_h as i64) << 16) / (dst_h as i64);
-
-    for dy in 0..dst_h {
-        let sy = (((dy as i64) * step_y) >> 16).clamp(0, (src_h - 1) as i64) as usize;
-        let src_row = origin + sy * src_stride;
-        let dst_row = (dy as usize) * (dst_w as usize);
-
-        let mut sx_fp = 0i64;
-        for dx in 0..dst_w {
-            let sx = (sx_fp >> 16).clamp(0, (src_w - 1) as i64) as usize;
-            out[dst_row + (dx as usize)] = pixels[src_row + sx];
-            sx_fp += step_x;
-        }
-    }
-
-    FrameImage {
-        width: dst_w,
-        height: dst_h,
-        stride: dst_w as usize,
-        pixels: out.into_boxed_slice(),
-    }
-}
 
 // ------------------------------
 // Loading macros
 // ------------------------------
 
+/// Loads an image from a file path using the `overlay::FrameImage` type.
+///
+/// This macro takes a string literal or expression representing a file path and attempts to load
+/// the image using `FrameImage::from_path`. If the image fails to load, a panic occurs with a
+/// message indicating the path and the error that occurred.
+///
+/// # Arguments
+///
+/// * `path` - A string literal or expression representing the file path to the image.
+///
+/// # Returns
+///
+/// A `FrameImage` instance representing the loaded image.
+///
+/// # Panics
+///
+/// If the image fails to load, this macro will panic with a message in the format:
+/// `"failed to load image <path>: <error>"`.
+///
+/// # Example
+///
+/// ```rust
+/// let image = load_image!("assets/logo.png");
+/// ```
+///
 #[macro_export]
 macro_rules! load_image {
     ($path:expr) => {{
@@ -832,6 +970,35 @@ macro_rules! load_image {
     }};
 }
 
+/// Creates a `FrameImage` from an embedded image file using the provided path.
+///
+/// This macro loads a binary image file from the current crate's resources using `include_bytes!`,
+/// then attempts to decode it into a `FrameImage`. If decoding fails, it panics with an error message
+/// containing the path and the specific error.
+///
+/// # Arguments
+///
+/// * `$path:expr` - A string literal or expression representing the path to the embedded image file.
+///   The path is relative to the crate's resources directory and must point to a valid binary image file.
+///
+/// # Returns
+///
+/// A `FrameImage` instance decoded from the embedded image data.
+///
+/// # Panics
+///
+/// If the image file cannot be loaded or decoded, this macro will panic with a message
+/// indicating the path and the underlying error.
+///
+/// # Example
+///
+/// ```rust
+/// include_image!("assets/logo.png");
+/// ```
+///
+/// # Note
+///
+/// The image must be embedded in the crate's resources and accessible via the `include_bytes!` macro.
 #[macro_export]
 macro_rules! include_image {
     ($path:expr) => {{
