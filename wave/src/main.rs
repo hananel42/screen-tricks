@@ -8,7 +8,7 @@ const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
 use random::Random;
 
 use lexopt::ValueExt;
-use overlay::{Canvas, CaptureSession, EventResult, FrameImage, OverlayApp, OverlayContext, OverlayEvent, run, MouseButton, ImageSource, ImageView};
+use overlay::{run, Canvas, CaptureSession, EventResult, ImageSource, MouseButton, OverlayApp, OverlayContext, OverlayEvent};
 use std::process;
 
 struct Ripple {
