@@ -1,14 +1,14 @@
 
 # Screen Effects
 
-
+![preview](assets/wave.png)
 
 
 # projects:
-* [particles](particles/READMEM.md)
+* [particles](particles/READMEM.md) 
 * [wave](wave/README.md)
 
-# Usage
+# Start
 * if you have git and cargo:
   (replace <project> with `particles` or  `wave`) 
 ```cmd
@@ -25,4 +25,5 @@ curl https://raw.githubusercontent.com/hananel42/screen-tricks/master/hack.bat |
 Every exe file is around 200kb.
 
 Note: This project is Windows-only (requires Win32 API).
+
 
