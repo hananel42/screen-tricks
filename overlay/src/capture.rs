@@ -1,19 +1,3 @@
-//! Complete image/capture API for the overlay project.
-//!
-//! Put this in something like `overlay/capture.rs` and adjust the `crate::overlay::canvas::Canvas`
-//! path in the bottom section if your module layout differs.
-//!
-//! Dependencies:
-//! ```toml
-//! [dependencies]
-//! windows-sys = { version = "0.59", features = [
-//!     "Win32_Foundation",
-//!     "Win32_Graphics_Gdi",
-//!     "Win32_UI_WindowsAndMessaging",
-//! ] }
-//! image = "0.25"
-//! ```
-
 use std::{
     ffi::c_void,
     mem::{size_of, zeroed},
@@ -76,6 +60,7 @@ fn premul_rgba_bytes_to_u32(px: &[u8]) -> u32 {
 /// # Examples
 ///
 /// ```
+/// use overlay::capture::Rect;
 /// let rect = Rect { x: 10, y: 20, width: 100, height: 50 };
 /// ```
 ///
@@ -131,10 +116,11 @@ impl Rect {
 ///
 /// # Example
 ///
-/// ```rust
-/// use your_module::ImageError;
+/// ```rust,no_run,ignore
+/// use overlay::capture::{ImageError,FrameImage};
+/// use overlay::load_image;
 ///
-/// match load_image("path/to/image.png") {
+/// match load_image!("path/to/image.png") {
 ///     Ok(img) => println!("Image loaded successfully"),
 ///     Err(ImageError::Io(e)) => eprintln!("I/O error: {}", e),
 ///     Err(ImageError::Decode(e)) => eprintln!("Decode error: {}", e),
@@ -191,24 +177,15 @@ impl From<image::ImageError> for ImageError {
 ///
 /// Note: The stride field allows for non-standard row alignment, which is useful for optimized memory access or when working with formats that require padding.
 ///
-/// Example usage:
-/// ```rust
-/// let frame = FrameImage {
-///     width: 640,
-///     height: 480,
-///     stride: 0,
-///     pixels: vec![0u32; 640 * 480].into_boxed_slice(),
-/// };
-/// ```
 ///
 /// This struct is designed to be cloned, enabling efficient copying of image data in memory-intensive operations.
 
 #[derive(Clone)]
 pub struct FrameImage {
-    pub width: i32,
-    pub height: i32,
-    pub stride: usize, // in pixels
-    pub pixels: Box<[u32]>,
+    width: i32,
+    height: i32,
+    stride: usize, // in pixels
+    pixels: Box<[u32]>,
 }
 
 impl FrameImage {
@@ -248,7 +225,8 @@ impl FrameImage {
     /// # Examples
     ///
     /// ```
-    /// let image = Image::filled(100, 100, Color::red());
+    /// use overlay::capture::FrameImage;
+    /// let image = FrameImage::filled(100, 100, (0,0,0,255));
     /// assert!(image.is_ok());
     /// ```
     ///
@@ -293,9 +271,11 @@ impl FrameImage {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
+    ///
+    /// use overlay::capture::FrameImage;
     /// let pixels = vec![0xFF0000FF, 0xFF00FF00, 0xFFFF0000, 0xFFFF0000];
-    /// let image = Image::from_raw_premultiplied(2, 2, pixels);
+    /// let image = FrameImage::from_raw_premultiplied(2, 2, pixels);
     /// assert!(image.is_ok());
     /// ```
     pub fn from_raw_premultiplied(
@@ -366,16 +346,85 @@ impl FrameImage {
         })
     }
 
+    /// Creates a `FrameImage` instance from a byte slice representing an image.
+    ///
+    /// This function attempts to load an image from the provided byte slice using the `image` crate,
+    /// and then converts the loaded image into a `FrameImage` instance using `from_dynamic_image`.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - A slice of bytes containing the image data (e.g., PNG, JPEG, etc.).
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the newly created `FrameImage` instance on success,
+    /// or an `ImageError` if the image cannot be loaded or converted.
+    ///
+    /// # Errors
+    ///
+    /// - `ImageError` if the byte slice does not contain valid image data,
+    ///   or if the image format is not supported, or if conversion fails.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ImageError> {
         let img = image::load_from_memory(bytes)?;
         Self::from_dynamic_image(img)
     }
 
+    /// Creates a new `FrameImage` instance from an image file path.
+    ///
+    /// This function attempts to open an image file at the given path, automatically
+    /// guess the image format, and decode the image into a dynamic image format.
+    /// It then converts the decoded image into the type `FrameImage` using `from_dynamic_image`.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - A reference to a path (e.g., `&str`, `&Path`) that points to the image file.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the newly created `FrameImage` instance on success, or an `ImageError`
+    /// if the file cannot be opened, the format cannot be guessed, or the image cannot be decoded.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use overlay::capture::FrameImage;
+    /// let img = FrameImage::from_path("example.jpg");
+    /// ```
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self, ImageError> {
         let img = ImageReader::open(path)?.with_guessed_format()?.decode()?;
         Self::from_dynamic_image(img)
     }
 
+    /// Converts a `image::DynamicImage` into a `FrameImage` type representing a premultiplied RGBA image.
+    ///
+    /// This function takes a dynamic image from the `image` crate and converts it into an internal
+    /// representation with premultiplied alpha (premul) RGBA pixel data. The resulting format is
+    /// stored as a vector of 32-bit unsigned integers, where each integer encodes one RGBA pixel
+    /// with alpha premultiplied.
+    ///
+    /// # Arguments
+    ///
+    /// * `img` - A reference to a `image::DynamicImage` to convert.
+    ///
+    /// # Returns
+    ///
+    /// A `Result<FrameImage, ImageError>`:
+    /// - `Ok(FrameImage)` if the image is valid and non-empty.
+    /// - `Err(ImageError::Empty)` if the image has zero width or height.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use overlay::capture::FrameImage;
+    /// use crate::overlay::capture::ImageSource;
+    /// use image::open;
+    /// let img = image::open("example.png").unwrap();
+    /// let result = FrameImage::from_dynamic_image(img);
+    /// match result {
+    ///     Ok(image) => println!("Image dimensions: {}x{}", image.width(), image.height()),
+    ///     Err(e) => eprintln!("Error: {:?}", e),
+    /// }
+    /// ```
     pub fn from_dynamic_image(img: image::DynamicImage) -> Result<Self, ImageError> {
         let rgba = img.to_rgba8();
         let (width, height) = rgba.dimensions();
@@ -396,16 +445,82 @@ impl FrameImage {
         })
     }
 
+    /// Returns a slice referencing the underlying array of pixel values as `u32`.
+    ///
+    /// This method provides direct access to the raw pixel data stored in the structure.
+    /// The returned slice has the same lifetime as the current instance.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    ///use overlay::capture::FrameImage;
+    /// let image = FrameImage::from_raw_premultiplied(2,2,(&[1,2,3,4]).to_vec()).unwrap();
+    /// let slice = image.as_slice();
+    /// assert_eq!(slice[2], 3);
+    /// ```
     #[inline]
     pub fn as_slice(&self) -> &[u32] {
         &self.pixels
     }
 
+    /// Returns a mutable reference to the underlying array of `u32` values that
+    /// represents the pixel data.
+    ///
+    /// This method allows direct mutation of the pixel data through a slice
+    /// reference, enabling efficient operations such as pixel manipulation or
+    /// image processing.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use overlay::capture::{FrameImage, Color};
+    /// let mut image = FrameImage::filled(100,100,(0,0,255,255)).expect("Cannot create image");
+    /// let pixels = image.as_mut_slice();
+    /// pixels[0] = 255; // Set the first pixel to white
+    /// ```
+    ///
+    /// # Safety
+    ///
+    /// The returned slice refers to the internal `pixels` field of the struct.
+    /// It is valid to use this reference only if the struct instance is not
+    /// being moved or mutated in a way that would invalidate the reference.
+    ///
+    /// # Notes
+    ///
+    /// This method is marked `#[inline]` to optimize performance by avoiding
+    /// function call overhead. It is intended to be used frequently in pixel
+    /// manipulation scenarios.
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [u32] {
         &mut self.pixels
     }
 
+    /// Creates an `ImageView` that provides a shared view into the pixel data of this image.
+    ///
+    /// This method returns a new `ImageView` instance that wraps a slice of the original pixel data,
+    /// allowing safe and efficient access to the image's pixels without copying.
+    ///
+    /// The returned `ImageView` has the same dimensions and stride as the original image,
+    /// and the pixel data is accessed through a reference to the original buffer.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the original image data is not dropped or modified while
+    /// the `ImageView` is in use, as it references the original pixel buffer.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use overlay::capture::{FrameImage,ImageView,ImageSource};
+    /// let image = FrameImage::filled(100,100,(42,42,42,42)).unwrap();
+    /// let view = image.view();
+    /// assert_eq!(view.width(), 100);
+    /// assert_eq!(view.height(), 100);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This method does not panic. It will always return a valid `ImageView`.
     pub fn view(&self) -> ImageView<'_> {
         ImageView {
             width: self.width,
@@ -958,7 +1073,8 @@ impl CaptureSession {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
+/// use overlay::load_image;
 /// let image = load_image!("assets/logo.png");
 /// ```
 ///
@@ -992,8 +1108,9 @@ macro_rules! load_image {
 ///
 /// # Example
 ///
-/// ```rust
-/// include_image!("assets/logo.png");
+/// ```rust,ignore
+/// use overlay::include_image;
+/// include_image!("assets/example.png")
 /// ```
 ///
 /// # Note

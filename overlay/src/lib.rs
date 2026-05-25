@@ -24,7 +24,7 @@
 //! cross-platform operation or other operating systems.
 //!
 //! # Example
-//! ```rust,no_doc
+//! ```rust,no_run
 #![doc=include_str!("../examples/simple_video_rect.rs")]
 //! ```
 
