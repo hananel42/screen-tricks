@@ -16,7 +16,6 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
     SetProcessDPIAware,
 };
-
 // ------------------------------
 // Helpers
 // ------------------------------
@@ -80,6 +79,10 @@ pub struct Rect {
 }
 
 impl Rect {
+    /// Creates a new rectangle with the specified position and dimensions.
+    pub fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
+        Self { x, y, width, height }
+    }
     fn virtual_screen() -> Option<Self> {
         unsafe {
             let x = GetSystemMetrics(SM_XVIRTUALSCREEN);
@@ -547,7 +550,7 @@ pub struct ImageView<'a> {
 }
 
 impl<'a> ImageView<'a> {
-    pub fn crop(&self, x: i32, y: i32, w: i32, h: i32) -> Option<ImageView<'a>> {
+    fn crop(&self, x: i32, y: i32, w: i32, h: i32) -> Option<ImageView<'a>> {
         if x < 0 || y < 0 || w <= 0 || h <= 0 {
             return None;
         }
@@ -581,7 +584,7 @@ impl<'a> ImageView<'a> {
         }
     }
 
-    pub fn resize_nearest(&self, dst_w: i32, dst_h: i32) -> FrameImage {
+    fn resize_nearest(&self, dst_w: i32, dst_h: i32) -> FrameImage {
         if self.width <= 0 || self.height <= 0 || dst_w <= 0 || dst_h <= 0 {
             return FrameImage::empty();
         }
@@ -611,7 +614,7 @@ impl<'a> ImageView<'a> {
         }
     }
 
-    pub fn rotate_90_cw(&self) -> FrameImage {
+    fn rotate_90_cw(&self) -> FrameImage {
         if self.width <= 0 || self.height <= 0 {
             return FrameImage::empty();
         }
@@ -643,7 +646,7 @@ impl<'a> ImageView<'a> {
         }
     }
 
-    pub fn rotate_90_ccw(&self) -> FrameImage {
+    fn rotate_90_ccw(&self) -> FrameImage {
         if self.width <= 0 || self.height <= 0 {
             return FrameImage::empty();
         }
@@ -675,11 +678,11 @@ impl<'a> ImageView<'a> {
         }
     }
 
-    pub fn rotate_degrees(&self, degrees: f32, background: u32) -> FrameImage {
+    fn rotate_degrees(&self, degrees: f32, background: Color) -> FrameImage {
         if self.width <= 0 || self.height <= 0 {
             return FrameImage::empty();
         }
-
+        let background = rgba_premul(background);
         let rad = degrees.to_radians();
         let sin = rad.sin();
         let cos = rad.cos();
@@ -750,7 +753,7 @@ impl<'a> ImageView<'a> {
         }
     }
 
-    pub fn flip_horizontal(&self) -> FrameImage {
+    fn flip_horizontal(&self) -> FrameImage {
         if self.width <= 0 || self.height <= 0 {
             return FrameImage::empty();
         }
@@ -777,7 +780,7 @@ impl<'a> ImageView<'a> {
         }
     }
 
-    pub fn flip_vertical(&self) -> FrameImage {
+    fn flip_vertical(&self) -> FrameImage {
         if self.width <= 0 || self.height <= 0 {
             return FrameImage::empty();
         }
@@ -807,15 +810,66 @@ impl<'a> ImageView<'a> {
 // ImageSource trait
 // ------------------------------
 
+/// `ImageSource` is a trait that defines the core interface for any image data source.
+///
+/// It provides methods to access the image's dimensions, pixel data, and various image transformations.
+/// All operations are performed on a view of the raw pixel data, with methods that return new `FrameImage`
+/// instances to ensure the original image remains unmodified.
+///
+/// # Key Features
+///
+/// - `width()` and `height()` return the image dimensions in pixels.
+/// - `stride()` returns the byte stride of the pixel buffer (used for alignment or padding).
+/// - `pixels()` returns a slice to the raw pixel data, where each pixel is represented as a 32-bit unsigned integer.
+/// - `origin()` returns the starting index of the image data in the buffer (default is 0).
+///
+/// # Transformations
+///
+/// The trait supports common image operations:
+/// - `view()`: Returns an `ImageView` that provides a safe, immutable view into the pixel data.
+/// - `frame()`: Returns a fully owned `FrameImage` copy of the current image.
+/// - `crop()`: Creates a new `ImageView` representing a cropped region of the image (returns `None` if bounds are invalid).
+/// - `resize_nearest()`: Resizes the image using nearest-neighbor interpolation.
+/// - `rotate_90_cw()` and `rotate_90_ccw()`: Rotate the image 90 degrees clockwise or counterclockwise.
+/// - `rotate_degrees()`: Rotates the image by a specified number of degrees around its center, with optional background filling.
+/// - `flip_horizontal()` and `flip_vertical()`: Flip the image along the horizontal or vertical axis.
+///
+/// # Safety and Ownership
+///
+/// All transformations return new `FrameImage` instances. The original image is not modified.
+/// The `pixels()` method returns a slice, so it is valid only as long as the source data remains valid.
+///
+/// # Example Usage
+///
+/// ```rust
+/// use overlay::capture::{FrameImage,ImageSource};
+/// let image = FrameImage::filled(100,42,(255,255,0,24)).unwrap();
+/// let view = image.view();
+/// let rotated = image.rotate_90_cw();
+/// let cropped = image.crop(10, 10, 50, 50);
+/// ```
+///
+/// # Notes
+///
+/// - The pixel format is assumed to be 32-bit unsigned integers (u32), typically representing RGBA values.
+/// - All rotation and flip operations are performed around the image's center, with background filling where appropriate.
+/// - The `Color` type is assumed to be u32 representing an RGBA value.
 pub trait ImageSource {
+    /// Returns the width of the object as an i32 value.
     fn width(&self) -> i32;
+    /// Returns the height of the object as an i32 value.
     fn height(&self) -> i32;
-    fn stride(&self) -> usize; // in pixels
+    /// Returns the stride of the buffer.
+    fn stride(&self) -> usize;
+
+    /// Returns a slice referencing the raw pixel data of the image.
     fn pixels(&self) -> &[u32];
+    /// Returns the origin index of the image (used for ImageView).
     fn origin(&self) -> usize {
         0
     }
 
+    /// Creates an `ImageView` that provides a view into the pixel data of this image,
     #[inline]
     fn view(&self) -> ImageView<'_> {
         ImageView {
@@ -827,48 +881,99 @@ pub trait ImageSource {
         }
     }
 
+    /// Returns a copy of the current image as a `FrameImage`.
     #[inline]
     fn frame(&self) -> FrameImage {
         self.view().to_owned()
     }
 
+    /// Creates a new `ImageView` that represents a cropped region of the original image.
     #[inline]
     fn crop(&self, x: i32, y: i32, w: i32, h: i32) -> Option<ImageView<'_>> {
         self.view().crop(x, y, w, h)
     }
 
+    /// Resizes the image using nearest-neighbor interpolation.
     #[inline]
     fn resize_nearest(&self, dst_w: i32, dst_h: i32) -> FrameImage {
         self.view().resize_nearest(dst_w, dst_h)
     }
 
+    /// Rotates the frame image 90 degrees clockwise.
+    ///
+    /// This method returns a new `FrameImage` that represents the original image rotated
+    /// 90 degrees clockwise. The rotation is performed on the view of the current frame,
+    /// and the original image remains unmodified.
+    ///
+    /// # Returns
+    ///
+    /// A new `FrameImage` object with the 90-degree clockwise rotation applied.
     #[inline]
     fn rotate_90_cw(&self) -> FrameImage {
         self.view().rotate_90_cw()
     }
 
+    /// Rotates the image 90 degrees counterclockwise (CCW) around its center.
+    ///
+    /// This method returns a new `FrameImage` that represents the original image rotated
+    /// 90 degrees counterclockwise. The rotation is performed around the image's center,
+    /// preserving the original image and returning a separate instance of the rotated image.
+    ///
+    /// # Returns
+    ///
+    /// A new `FrameImage` object containing the rotated image.
     #[inline]
     fn rotate_90_ccw(&self) -> FrameImage {
         self.view().rotate_90_ccw()
     }
 
+    /// Rotates the frame image by a specified number of degrees around its center,
+    /// with a background color filled behind the rotated image.
+    ///
+    /// This function applies a rotation transformation to the current frame image,
+    /// using the specified degrees to rotate the image counterclockwise around its center.
+    /// The background color is used to fill the area outside the rotated image.
+    ///
+    /// # Arguments
+    ///
+    /// * `degrees` - The number of degrees to rotate the image. Positive values rotate
+    ///               counterclockwise, negative values rotate clockwise.
+    /// * `background` - The background color (as a 32-bit unsigned integer) used to fill
+    ///                  the area outside the rotated image.
+    ///
+    /// # Returns
+    ///
+    /// A new `FrameImage` object representing the rotated image with the specified background.
     #[inline]
-    fn rotate_degrees(&self, degrees: f32, background: u32) -> FrameImage {
+    fn rotate_degrees(&self, degrees: f32, background: Color) -> FrameImage {
+
         self.view().rotate_degrees(degrees, background)
     }
 
+    /// Flips the image horizontally using the current view.
+    ///
+    /// This method creates a new `FrameImage` by flipping the current image along the horizontal axis.
+    /// The original image is not modified; a new instance is returned with the flipped content.
+    ///
+    /// # Returns
+    ///
+    /// A new `FrameImage` with the content flipped horizontally.
     #[inline]
     fn flip_horizontal(&self) -> FrameImage {
         self.view().flip_horizontal()
     }
 
+    /// Flips the image vertically (top to bottom) using the current view.
+    ///
+    /// This method creates a new `FrameImage` by flipping the current image along the vertical axis,
+    /// effectively reversing the order of rows from top to bottom.
+    ///
+    /// # Returns
+    ///
+    /// A new `FrameImage` with the vertical flip applied.
     #[inline]
     fn flip_vertical(&self) -> FrameImage {
         self.view().flip_vertical()
-    }
-    #[inline]
-    fn to_owned(&self) -> FrameImage {
-        self.frame()
     }
 }
 
@@ -909,6 +1014,7 @@ impl<'a> ImageSource for ImageView<'a> {
 // Capture backend
 // ------------------------------
 
+/// A capture session that captures a region of the screen, including optional layered windows.
 pub struct CaptureSession {
     rect: Rect,
     screen_dc: HDC,
@@ -939,6 +1045,9 @@ impl Drop for CaptureSession {
 }
 
 impl CaptureSession {
+    /// Creates a new instance of the type with DPI awareness enabled for the current process.
+    /// Returns `Some(CaptureSession)` if successful, otherwise `None` if the virtual screen bounds
+    /// could not be retrieved or another error occurred.
     pub fn new() -> Option<Self> {
         unsafe {
             SetProcessDPIAware();
@@ -946,6 +1055,29 @@ impl CaptureSession {
         Self::with_rect(Rect::virtual_screen()?, true)
     }
 
+    /// Creates a new screen capture context for capturing a rectangular region of the screen.
+    ///
+    /// # Arguments
+    ///
+    /// * `rect` - A `Rect` struct specifying the region of the screen to capture (in screen coordinates).
+    /// * `include_layered_windows` - A boolean flag indicating whether to include layered windows
+    ///   in the capture (e.g., transparent or overlay windows). If `true`, layered windows are rendered
+    ///   as part of the capture; if `false`, they are skipped.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(CaptureSession)` if the context is successfully created and initialized. Returns `None`
+    /// if any of the Windows API calls fail.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use overlay::capture::{CaptureSession,Rect,ImageView};
+    /// let mut cap = CaptureSession::with_rect(Rect::new(0, 0, 800, 600), true).unwrap();
+    /// if let Some(frame) = cap.capture() {
+    ///     //do stuff with your image :)
+    /// }
+    /// ```
     pub fn with_rect(rect: Rect, include_layered_windows: bool) -> Option<Self> {
         unsafe {
             let _ = SetProcessDPIAware();
@@ -998,6 +1130,7 @@ impl CaptureSession {
         }
     }
 
+    /// Returns a `Rect` representing the bounding rectangle of the object.
     pub fn rect(&self) -> Rect {
         self.rect
     }

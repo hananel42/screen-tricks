@@ -11,7 +11,7 @@ use lexopt::ValueExt;
 use overlay::{
     Canvas, EventResult, OverlayApp, OverlayContext, OverlayEvent, run,
     capture::{
-        CaptureSession,FrameImage
+        CaptureSession,FrameImage,ImageSource
     }
 };
 use std::process;
