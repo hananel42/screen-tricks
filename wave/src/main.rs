@@ -73,6 +73,7 @@ impl OverlayApp for App {
             OverlayEvent::KeyDown { vk } => match vk {
                 0x1B => c.close(), // ESC
                 0x20 => {
+                    c.hide_from_capture(self.state.freeze);
                     self.state.freeze = !self.state.freeze;
                     return EventResult::Consumed;
                 } // SPACE
@@ -100,23 +101,22 @@ impl OverlayApp for App {
     }
 
     fn update(&mut self, _overlay_context: &mut OverlayContext, delta: f32) {
+        if self.state.freeze {return;}
 
-        if !self.state.freeze {
+        let speed = self.settings.wave_speed;
+        let decay = self.settings.decay;
 
-            let speed = self.settings.wave_speed;
-            let decay = self.settings.decay;
-
-            self.state.ripples.retain_mut(|ripple| {
-                ripple.radius += speed * delta;
-                ripple.amplitude -= decay * delta;
-                ripple.amplitude > 0.1
-            });
+        self.state.ripples.retain_mut(|ripple| {
+            ripple.radius += speed * delta;
+            ripple.amplitude -= decay * delta;
+            ripple.amplitude > 0.1
+        });
 
 
-        }
     }
 
     fn render(&mut self, canvas: &mut Canvas) {
+        if self.state.freeze {return;}
         canvas.fill((0,0,0,255));
 
         if let Some(frame) = self.capture.capture() {
