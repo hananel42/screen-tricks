@@ -1,3 +1,10 @@
+//! # Win32 Native Windowing and Hook Subsystem
+//!
+//! This module encapsulates the low-level Windows OS window lifecycle management.
+//! It registers window classes, spawns a borderless layered window (`WS_EX_LAYERED`), 
+//! instantiates global low-level OS input hooks (`WH_KEYBOARD_LL`, `WH_MOUSE_LL`), 
+//! and orchestrates the primary real-time game/render loop using high-precision timers.
+
 use std::cmp::PartialEq;
 use std::time::Instant;
 use std::{
@@ -29,34 +36,73 @@ pub(crate) const ULW_ALPHA: u32 = 0x0000_0002;
 // ============================================================
 // SAFE EVENT API
 // ============================================================
+
+/// Dictates how an input event should be processed after being intercepted by the overlay.
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub enum EventResult {
+    /// The event is consumed by the overlay application. It will **not** be passed down
+    /// to the underlying windows or applications (swallowed input).
     Consumed,
+    /// The event is ignored or partially reacted to, allowing it to propagate normally 
+    /// through the OS down to target foreground applications.
     Propagated,
 }
 
+/// Identifies standard hardware mouse button mappings.
 #[derive(Clone, Copy, Debug)]
 pub enum MouseButton {
+    /// Left mouse button.
     Left,
+    /// Right mouse button.
     Right,
+    /// Middle wheel click mouse button.
     Middle,
+    /// Extended side button 1.
     X1,
+    /// Extended side button 2.
     X2,
 }
 
+/// A unified event container representing structural asynchronous hardware input events.
 #[derive(Clone, Copy, Debug)]
 pub enum OverlayEvent {
-    KeyDown { vk: u32 },
+    /// A keyboard button pressed state trigger.
+    KeyDown {
+        /// The virtual key code identifier (e.g., `VK_ESCAPE`, `0x41` for 'A').
+        vk: u32
+    },
 
-    KeyUp { vk: u32 },
+    /// A keyboard button released state trigger.
+    KeyUp {
+        /// The virtual key code identifier.
+        vk: u32
+    },
 
-    MouseMove { x: i32, y: i32 },
+    /// Absolute hardware cursor position motion coordinates tracking.
+    MouseMove {
+        /// Global desktop x-coordinate position.
+        x: i32,
+        /// Global desktop y-coordinate position.
+        y: i32
+    },
 
-    MouseDown { button: MouseButton },
+    /// A mouse button pressed state trigger.
+    MouseDown {
+        /// The specific mouse button triggered.
+        button: MouseButton
+    },
 
-    MouseUp { button: MouseButton },
+    /// A mouse button released state trigger.
+    MouseUp {
+        /// The specific mouse button released.
+        button: MouseButton
+    },
 
-    MouseWheel { delta: i16 },
+    /// Vertical mouse wheel scrolling rotation delta tracker.
+    MouseWheel {
+        /// Rotation wheel travel step value (multiples of standard 120 units).
+        delta: i16
+    },
 }
 
 static mut STATE_PTR: *mut OverlayState = null_mut();
@@ -225,6 +271,8 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
 
         }
 
+        // Forces the window frame to signal complete transparent mouse hittest transparency,
+        // ensuring all standard click interactions click directly through into desktop elements behind it.
         WM_NCHITTEST => HTTRANSPARENT_VALUE,
 
         WM_ERASEBKGND => 1,
@@ -233,6 +281,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
     }
 }
 
+/// A situational controller interface allowing active overlay updates during application cycles.
 pub struct OverlayContext {
     pub(super) hwnd: HWND,
     pub(super) width: i32,
@@ -240,17 +289,24 @@ pub struct OverlayContext {
 }
 
 impl OverlayContext {
+    /// Unregisters and gracefully drops the running window instance.
     pub fn close(&self) {
         unsafe {
             DestroyWindow(self.hwnd);
         }
     }
+
+    /// Returns the active pixel layout width tracking bounds.
     pub fn width(&self) -> i32 {
         self.width
     }
+
+    /// Returns the active pixel layout height tracking bounds.
     pub fn height(&self) -> i32 {
         self.height
     }
+
+    /// Queries the dynamic worldwide hardware desktop coordinate cursor tracking position.
     pub fn mouse_position(&self) -> (i32, i32) {
         unsafe {
             let mut pt = POINT { x: 0, y: 0 };
@@ -260,6 +316,11 @@ impl OverlayContext {
             (pt.x, pt.y)
         }
     }
+
+    /// Enables or disables structural OS screen recording exclusion bounds.
+    ///
+    /// Setting this to `true` leverages `SetWindowDisplayAffinity` to turn the overlay black/invisible 
+    /// inside popular casting platforms, screenshots, OBS, or streaming layouts.
     pub fn hide_from_capture(&self, hide: bool) {
         unsafe {
             if hide {
@@ -275,8 +336,13 @@ impl OverlayContext {
 // API
 // ============================================================
 
+/// The fundamental trait governing user overlay app runtime bindings.
+/// Implemented by developers to handle events, state steps, and custom drawing loops.
 pub trait OverlayApp {
+    /// Fired exactly once immediately following native window handle binding instantiation.
     fn init(&mut self, _overlay_context: &mut OverlayContext) {}
+
+    /// Main input dispatcher hook targeted at filtering globally captured mouse/keyboard operations.
     fn handler(
         &mut self,
         _event: OverlayEvent,
@@ -285,13 +351,29 @@ pub trait OverlayApp {
         EventResult::Propagated
     }
 
+    /// Executed iteratively at each loop iteration step. Used for state calculations and logic increments.
+    ///
+    /// # Arguments
+    /// * `_delta` - Floating-point duration interval measurement denoting seconds elapsed since the prior iteration frame.
     fn update(&mut self, _overlay_context: &mut OverlayContext, _delta: f32) {}
 
+    /// Triggered following logic update completions. Used to draw visuals directly onto the frame memory canvas block.
     fn render(&mut self, _canvas: &mut Canvas) {}
 
+    /// Fired right before the window context resources are unlinked and destroyed by the OS.
     fn shutdown(&mut self, _overlay_context: &mut OverlayContext) {}
 }
 
+/// The core bootstrapping framework block execution initialization engine.
+///
+/// Spawns the underlying Win32 window infrastructure, configures virtual monitor coordinates scaling layouts, 
+/// installs localized low-level intercept hardware hooks, and retains active main execution thread focus blocks 
+/// until standard shutdown sequences exit.
+///
+/// # Thread Safety
+///
+/// This call actively hijacks execution flow focus limits on the caller thread to loop structural 
+/// window polling hooks until structural `WM_QUIT` actions occur.
 pub fn run(app: impl OverlayApp + 'static) {
     unsafe {
         SetProcessDPIAware();
