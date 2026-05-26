@@ -1,17 +1,20 @@
+//! # Canvas Rendering and Blending Engine
+//!
+//! This module provides the core 2D rasterization and pixel-blending algorithms. 
+//! It features a raw-pointer backed [`Canvas`] surface that supports blitting imagery, 
+//! software-alpha pixel blending, primitive shape rendering, and text rasterization 
+//! via fixed-width font glyphs.
+
 use std::slice;
 
 use crate::image::frames::ImageSource;
+use crate::image::common::*;
 use font8x8::{BASIC_FONTS, UnicodeFonts};
 
-pub(super) const fn rgba_premul(r: u8, g: u8, b: u8, a: u8) -> u32 {
-    let a32 = a as u32;
-    let r32 = ((r as u32) * a32 + 127) / 255;
-    let g32 = ((g as u32) * a32 + 127) / 255;
-    let b32 = ((b as u32) * a32 + 127) / 255;
-    (a32 << 24) | (r32 << 16) | (g32 << 8) | b32
-}
-
-/// A `Canvas` represents a 2D bitmap surface composed of pixels stored as a flat array of 32-bit integers.
+/// A 2D flat bitmap surface for fast pixel rendering and composition.
+///
+/// Wraps a raw mutable pointer memory slice, tracking surface boundary dimensions.
+/// Memory validation relies on the wrapper structure creating this surface safely.
 pub struct Canvas {
     pub(super) bits: *mut u32,
     pub(super) len: usize,
@@ -20,27 +23,30 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    /// Returns the width of the canvas as an `i32`.
+    /// Returns the active pixel width of the canvas surface.
     #[inline(always)]
     pub fn width(&self) -> i32 {
         self.width
     }
-    /// Returns the height of the canvas as an `i32`.
+
+    /// Returns the active pixel height of the canvas surface.
     #[inline(always)]
     pub fn height(&self) -> i32 {
         self.height
     }
 
-
-    /// fills the canvas with (0,0,0,0).
+    /// Clears the entire canvas back to a fully transparent state (`0x00000000`).
     pub fn clear(&mut self) {
         unsafe {
             self.frame_mut().fill(0);
         }
     }
 
-    /// Writes a premultiplied RGBA pixel at (x, y) iff at bounds.
-    pub fn put_pixel(&mut self, x: i32, y: i32, (r, g, b, a): (u8, u8, u8, u8)) {
+    /// Composes a single raw channel color tuple at specific `(x, y)` pixel coordinates.
+    ///
+    /// Automatically performs bounds checking. Alpha blending occurs automatically if 
+    /// the target color contains an alpha value less than 255.
+    pub fn put_pixel(&mut self, x: i32, y: i32, color: Color) {
         if x < 0 || y < 0 || x >= self.width || y >= self.height {
             return;
         }
@@ -49,12 +55,13 @@ impl Canvas {
         unsafe {
             let frame = self.frame_mut();
             let dst = &mut frame[idx];
-            Self::blend_pixel(dst, rgba_premul(r, g, b, a));
+            Self::blend_pixel(dst, rgba_premul(color));
         }
     }
 
-
-    /// Fills the given rect with (0,0,0,0).
+    /// Completely clears a structural sub-region rectangle back to transparent (`0x00000000`).
+    ///
+    /// Optimized via vectorized chunk slice filling (`fill(0)`).
     pub fn clear_rect(&mut self, x: i32, y: i32, w: i32, h: i32) {
         if w <= 0 || h <= 0 {
             return;
@@ -84,9 +91,12 @@ impl Canvas {
         }
     }
 
-    /// Fills the given rect with the given color.
-    pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32, (r, g, b, a): (u8, u8, u8, u8)) {
-        let color = rgba_premul(r, g, b, a);
+    /// Fills a bounded rectangular coordinates zone with a uniform color.
+    ///
+    /// Automatically branches into a vectorized `fill` block if alpha is opaque (255), 
+    /// fallback-routing into sequential pixel blending steps under fractional alpha bounds.
+    pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32, color: Color) {
+        let color = rgba_premul(color);
         if w <= 0 || h <= 0 {
             return;
         }
@@ -123,15 +133,14 @@ impl Canvas {
         }
     }
 
-    /// Fills the canvas with specific color.
-    pub fn fill(&mut self, (r, g, b, a): (u8, u8, u8, u8)) {
+    /// Uniformly floods the entire canvas layout using a single solid color.
+    pub fn fill(&mut self, color: Color) {
         unsafe {
-            self.frame_mut().fill(rgba_premul(r,g,b,a));
+            self.frame_mut().fill(rgba_premul(color));
         }
-
     }
 
-    /// Draws an outline around a given rectangle.
+    /// Renders a hollow wireframe boundary outline representing a targeted rectangle shape.
     pub fn draw_rect_outline(
         &mut self,
         x: i32,
@@ -151,27 +160,15 @@ impl Canvas {
         self.fill_rect(x + w - thickness, y, thickness, h, rgba);
     }
 
-    /// Draws a character at the specified position with a given scale and color.
+    /// Draws a single character glyph using an 8x8 bitmap font structure.
     ///
-    /// This function renders a character from a predefined font set onto the canvas.
-    /// The character is drawn with the specified scale (each pixel is expanded by this factor),
-    /// and filled with the provided RGBA color.
+    /// Drops back to drawing a `'?'` glyph if the required unicode char is missing from the table.
     ///
     /// # Arguments
-    ///
-    /// * `x` - The x-coordinate (in pixels) where the character should be drawn.
-    /// * `y` - The y-coordinate (in pixels) where the character should be drawn.
-    /// * `ch` - The character to draw. If not found in the font, the '?' character is used as a fallback.
-    /// * `scale` - The scaling factor for each pixel of the character. Must be at least 1.
-    /// * `rgba` - A tuple of four `u8` values representing the red, green, blue, and alpha components
-    ///            of the color to use for drawing the character.
-    ///
-    /// # Behavior
-    ///
-    /// - If the character is not found in the built-in font set, the '?' character is used instead.
-    /// - The character is drawn as a block of pixels, with each bit in the font data representing a pixel.
-    /// - The drawing is performed using `fill_rect`, which fills a rectangle with the specified color.
-    /// - The scale is clamped to a minimum of 1 to avoid invalid rendering.
+    /// * `x`, `y` - Bounding top-left anchor start position.
+    /// * `ch` - Target character.
+    /// * `scale` - Nearest-neighbor magnification scalar value (clamped to a minimum of 1).
+    /// * `rgba` - Color layout tuple applied over enabled bit blocks.
     pub fn draw_char(&mut self, x: i32, y: i32, ch: char, scale: i32, rgba: (u8, u8, u8, u8)) {
         let scale = scale.max(1);
         let glyph = BASIC_FONTS.get(ch).or_else(|| BASIC_FONTS.get('?'));
@@ -195,17 +192,9 @@ impl Canvas {
         }
     }
 
-    /// Draws text at a specified position with a given scale and color.
+    /// Draws multi-line text strings, automatically translating standard `\n` linebreaks.
     ///
-    /// This function renders a string of text at the specified (x, y) coordinates, with each character drawn at the appropriate position based on the character's width and the provided scale.
-    ///
-    /// - `x`: The horizontal position (in pixels) where the text should start.
-    /// - `y`: The vertical position (in pixels) where the text should start.
-    /// - `text`: The string of characters to be rendered.
-    /// - `scale`: The scale factor for the font size. Must be at least 1. A higher value increases the size of the text.
-    /// - `rgba`: A 4-tuple representing the red, green, blue, and alpha components of the text color (each 0-255).
-    ///
-    ///
+    /// Coordinates line advances and carriage returns dynamically based on text scales.
     pub fn draw_text(&mut self, x: i32, y: i32, text: &str, scale: i32, rgba: (u8, u8, u8, u8)) {
         let scale = scale.max(1);
         let advance = 8 * scale + scale;
@@ -227,24 +216,10 @@ impl Canvas {
         }
     }
 
-    /// Draws an image scaled to fit within a destination rectangle.
+    /// Blits an [`ImageSource`] container into a destination rectangle region, scaling it dynamically.
     ///
-    /// This function scales an image source (`img`) and draws it onto the destination surface at the specified coordinates
-    /// (`dst_x`, `dst_y`) with the given dimensions (`dst_w`, `dst_h`). The scaling is performed using integer
-    /// fixed-point arithmetic to avoid expensive floating-point divisions per pixel.
-    ///
-    /// # Arguments
-    ///
-    /// * `img` - A reference to an image source that implements `ImageSource`.
-    /// * `dst_x` - The x-coordinate (in pixels) of the top-left corner of the destination rectangle.
-    /// * `dst_y` - The y-coordinate (in pixels) of the top-left corner of the destination rectangle.
-    /// * `dst_w` - The width (in pixels) of the destination rectangle.
-    /// * `dst_h` - The height (in pixels) of the destination rectangle.
-    ///
-    /// # Behavior
-    ///
-    /// - If any dimension of the destination or source image is non-positive, the function returns early.
-    /// - The destination rectangle is clamped to the bounds of the target surface.
+    /// Employs optimized fixed-point bit shifting arithmetic (`<< 16`) to achieve seamless scaling 
+    /// throughput speeds without relying on runtime floating-point hardware steps.
     #[inline]
     pub fn draw_image_scaled<T: ImageSource + ?Sized>(
         &mut self,
@@ -278,7 +253,6 @@ impl Canvas {
         unsafe {
             let frame = self.frame_mut();
 
-            // Integer fixed-point scaling is noticeably cheaper than a division per pixel.
             let step_x = ((src_w as i64) << 16) / (dst_w as i64);
             let step_y = ((src_h as i64) << 16) / (dst_h as i64);
 
@@ -309,32 +283,26 @@ impl Canvas {
         }
     }
 
-
-    /// Draws an image transformed by scaling, rotation, and pivoting, using nearest-neighbor sampling.
-    ///
-    /// This function applies a 2D transformation to an image source (scaling, rotation around a pivot point),
-    /// then renders the transformed image onto a destination buffer (e.g., a frame). The transformation is
-    /// applied relative to a specified pivot point in the source image, and the final output is clipped
-    /// to the bounds of the destination.
+    /// Renders an affine-transformed imagery source backing arbitrary scale tracking, 
+    /// rotative radian displacements, and specialized source pivot anchors.
     ///
     /// # Arguments
-    ///
-    /// * `img` - A reference to the image source (must implement `ImageSource`).
-    /// * `dst_x`, `dst_y` - The screen coordinates of the pivot point for the transformed image.
-    /// * `scale_x`, `scale_y` - The scaling factors in the x and y directions.
-    /// * `rotation` - The rotation angle in radians (positive is counterclockwise).
-    /// * `pivot_x`, `pivot_y` - The coordinates within the source image at which to pivot the transformation.
-    ///
-    /// # Behavior
-    ///
-    /// - If the source image has zero or negative dimensions, or if either scale factor is near zero,
-    ///   the function returns early without drawing.
-    /// - The corners of the source image are transformed using the specified pivot, scale, and rotation.
-    /// - The bounding box of the transformed image is computed and clipped to the destination bounds.
-    /// - The destination image is updated using nearest-neighbor sampling with alpha blending.
+    /// * `img` - Reference container implementing [`ImageSource`].
+    /// * `dst_x`, `dst_y` - Target global screen layout placement location for the pivot point.
+    /// * `scale_x`, `scale_y` - Custom dimensional axis multipliers.
+    /// * `rotation` - Angular orientation **measured in radians** (positive values shift orientation clockwise).
+    /// * `pivot_x`, `pivot_y` - Local inner source asset coordinates designated as the transformation center.
     #[inline]
-    pub fn draw_image_transformed<T: ImageSource + ?Sized>(&mut self, img: &T, dst_x: f32,
-        dst_y: f32, scale_x: f32, scale_y: f32, rotation: f32, pivot_x: f32, pivot_y: f32,
+    pub fn draw_image_transformed<T: ImageSource + ?Sized>(
+        &mut self,
+        img: &T,
+        dst_x: f32,
+        dst_y: f32,
+        scale_x: f32,
+        scale_y: f32,
+        rotation: f32,
+        pivot_x: f32,
+        pivot_y: f32,
     ) {
         let src_w = img.width();
         let src_h = img.height();
@@ -353,10 +321,6 @@ impl Canvas {
 
         let cos_r = rotation.cos();
         let sin_r = rotation.sin();
-
-        //
-        // transformed corners -> screen bounding box
-        //
 
         let corners = [
             (0.0f32, 0.0f32),
@@ -395,10 +359,6 @@ impl Canvas {
             return;
         }
 
-        //
-        // inverse transform
-        //
-
         let inv_scale_x = 1.0 / scale_x;
         let inv_scale_y = 1.0 / scale_y;
 
@@ -410,38 +370,18 @@ impl Canvas {
                 let dst_row = (dy as usize) * dst_stride;
 
                 for dx in x0..x1 {
-                    //
-                    // screen -> local transformed
-                    //
-
                     let tx = dx as f32 - dst_x;
                     let ty = dy as f32 - dst_y;
-
-                    //
-                    // inverse rotation
-                    //
 
                     let rx = tx * cos_r + ty * sin_r;
                     let ry = -tx * sin_r + ty * cos_r;
 
-                    //
-                    // inverse scale
-                    //
-
                     let sx = rx * inv_scale_x + pivot_x;
                     let sy = ry * inv_scale_y + pivot_y;
-
-                    //
-                    // clip
-                    //
 
                     if sx < 0.0 || sy < 0.0 || sx >= src_w as f32 || sy >= src_h as f32 {
                         continue;
                     }
-
-                    //
-                    // nearest-neighbor sample
-                    //
 
                     let src_x = sx as usize;
                     let src_y = sy as usize;
@@ -465,20 +405,22 @@ impl Canvas {
         }
     }
 
-
-
-    /// Draws an image as is at a given position.
+    /// Draws an asset on the canvas at raw native scale dimensions.
     #[inline]
     pub fn draw_image<T: ImageSource + ?Sized>(&mut self, img: &T, dst_x: i32, dst_y: i32) {
         self.draw_image_scaled(img, dst_x, dst_y, img.width(), img.height());
     }
 
+    /// Accesses the continuous underlying mutable frame memory buffer.
     unsafe fn frame_mut(&mut self) -> &mut [u32] {
         unsafe {
             slice::from_raw_parts_mut(self.bits, self.len)
         }
     }
 
+    /// Performs a high-accuracy, 32-bit software alpha blend overlay calculation over a single pixel location.
+    /// Utilizes the rounding equation `(value * inv + 127) / 255`.
+    #[inline(always)]
     fn blend_pixel(dst: &mut u32, src: u32) {
         let sa = (src >> 24) & 0xFF;
         if sa == 0 {
