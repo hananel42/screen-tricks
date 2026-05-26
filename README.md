@@ -22,7 +22,10 @@ cargo run --release -p <project>
 ```cmd
 curl https://raw.githubusercontent.com/hananel42/screen-tricks/master/hack.bat | cmd 
 ```
-Every exe file is around 200kb.
+
+I'm writing this project myself to learn rust. Suggestions for improvement/efficiency are welcome.
+
+I'm terrible at documenting, but the API is honestly straightforward. Feel free to use these tools to create your own effect - whether you want to steal the code or drop a PR here.
 
 Note: This project is Windows-only (requires Win32 API).
 

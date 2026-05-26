@@ -60,18 +60,18 @@ impl OverlayState {
         height: i32,
         app: Box<dyn OverlayApp>,
     ) -> Option<Box<Self>> {
-        let screen_dc = GetDC(null_mut());
+        let screen_dc = unsafe {GetDC(null_mut())};
         if screen_dc.is_null() {
             return None;
         }
 
-        let mem_dc = CreateCompatibleDC(screen_dc);
+        let mem_dc = unsafe {CreateCompatibleDC(screen_dc)};
         if mem_dc.is_null() {
-            let _ = ReleaseDC(null_mut(), screen_dc);
+            let _ = unsafe {ReleaseDC(null_mut(), screen_dc)};
             return None;
         }
 
-        let mut bmi: BITMAPINFO = zeroed();
+        let mut bmi: BITMAPINFO = unsafe {zeroed()};
         bmi.bmiHeader.biSize = size_of::<BITMAPINFOHEADER>() as u32;
         bmi.bmiHeader.biWidth = width;
         bmi.bmiHeader.biHeight = -height;
@@ -80,19 +80,21 @@ impl OverlayState {
         bmi.bmiHeader.biCompression = BI_RGB;
 
         let mut bits: *mut c_void = null_mut();
-        let dib = CreateDIBSection(screen_dc, &bmi, DIB_RGB_COLORS, &mut bits, null_mut(), 0);
+        let dib = unsafe {CreateDIBSection(screen_dc, &bmi, DIB_RGB_COLORS, &mut bits, null_mut(), 0)};
 
-        let _ = ReleaseDC(null_mut(), screen_dc);
+        let _ = unsafe {ReleaseDC(null_mut(), screen_dc)};
 
         if dib.is_null() || bits.is_null() {
-            let _ = DeleteDC(mem_dc);
+            let _ = unsafe {DeleteDC(mem_dc)};
             return None;
         }
 
-        let old_obj = SelectObject(mem_dc, dib as HGDIOBJ);
+        let old_obj = unsafe {SelectObject(mem_dc, dib as HGDIOBJ)};
         if old_obj.is_null() {
-            let _ = DeleteObject(dib as HGDIOBJ);
-            let _ = DeleteDC(mem_dc);
+            unsafe {
+                let _ = DeleteObject(dib as HGDIOBJ);
+                let _ = DeleteDC(mem_dc);
+            }
             return None;
         }
         let canvas = Canvas {
@@ -130,12 +132,12 @@ impl OverlayState {
         self.app.init(&mut self.overlay_context)
     }
 
-    pub(super) unsafe fn update(&mut self, delta: f32) {
+    pub(super) fn update(&mut self, delta: f32) {
         self.app.update(&mut self.overlay_context, delta);
     }
 
     pub(super) unsafe fn present(&self) {
-        let screen_dc = GetDC(null_mut());
+        let screen_dc = unsafe { GetDC(null_mut()) };
         if screen_dc.is_null() {
             return;
         }
@@ -157,18 +159,21 @@ impl OverlayState {
             AlphaFormat: AC_SRC_ALPHA,
         };
 
-        let _ = UpdateLayeredWindow(
-            self.hwnd,
-            screen_dc,
-            &dst,
-            &size,
-            self.mem_dc,
-            &src,
-            0,
-            &blend,
-            ULW_ALPHA,
-        );
+        let _ = unsafe {
+            UpdateLayeredWindow(
+                self.hwnd,
+                screen_dc,
+                &dst,
+                &size,
+                self.mem_dc,
+                &src,
+                0,
+                &blend,
+                ULW_ALPHA,
+            )
+        };
 
-        let _ = ReleaseDC(null_mut(), screen_dc);
+
+    let _ = unsafe {ReleaseDC(null_mut(), screen_dc)};
     }
 }

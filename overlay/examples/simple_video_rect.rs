@@ -11,7 +11,7 @@
 
 use overlay::{
     Canvas, EventResult, OverlayApp, OverlayContext, OverlayEvent, MouseButton, run,
-    capture::CaptureSession
+    image::capture::CaptureSession
 };
 
 

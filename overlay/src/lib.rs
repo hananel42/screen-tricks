@@ -26,7 +26,7 @@
 
 
 mod canvas;
-pub mod capture;
+pub mod image;
 mod state;
 mod win32;
 

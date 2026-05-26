@@ -1,6 +1,6 @@
 use std::slice;
 
-use crate::capture::ImageSource;
+use crate::image::frames::ImageSource;
 use font8x8::{BASIC_FONTS, UnicodeFonts};
 
 pub(super) const fn rgba_premul(r: u8, g: u8, b: u8, a: u8) -> u32 {

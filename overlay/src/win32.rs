@@ -19,8 +19,6 @@ use crate::{
 use windows_sys::Win32::Foundation::{HINSTANCE, POINT};
 use windows_sys::Win32::Graphics::Gdi::UpdateWindow;
 
-pub(crate) const TIMER_ID: usize = 1;
-pub(crate) const FRAME_MS: u32 = 16;
 pub(crate) const SW_SHOWNOACTIVATE: i32 = 4;
 pub(crate) const GWLP_USERDATA: i32 = -21;
 pub(crate) const HTTRANSPARENT_VALUE: isize = -1;
@@ -69,8 +67,8 @@ static mut STATE_PTR: *mut OverlayState = null_mut();
 
 unsafe extern "system" fn keyboard_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
-        let kb = &*(lparam as *const KBDLLHOOKSTRUCT);
-        let state = &mut *STATE_PTR;
+        let kb = unsafe {&*(lparam as *const KBDLLHOOKSTRUCT)};
+        let state = unsafe {&mut *STATE_PTR};
         match wparam as u32 {
             WM_KEYDOWN | WM_SYSKEYDOWN => {
                 if state.handle_event(OverlayEvent::KeyDown { vk: kb.vkCode })
@@ -92,7 +90,7 @@ unsafe extern "system" fn keyboard_hook_proc(code: i32, wparam: WPARAM, lparam: 
         }
     }
 
-    CallNextHookEx(null_mut(), code, wparam, lparam)
+    unsafe { CallNextHookEx(null_mut(), code, wparam, lparam)}
 }
 
 // ============================================================
@@ -101,8 +99,8 @@ unsafe extern "system" fn keyboard_hook_proc(code: i32, wparam: WPARAM, lparam: 
 
 unsafe extern "system" fn mouse_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
-        let mouse = &*(lparam as *const MSLLHOOKSTRUCT);
-        let state = &mut *STATE_PTR;
+        let mouse = unsafe {&*(lparam as *const MSLLHOOKSTRUCT)};
+        let state = unsafe {&mut *STATE_PTR};
         match wparam as u32 {
             WM_MOUSEMOVE => {
                 if state.handle_event(OverlayEvent::MouseMove {
@@ -180,7 +178,7 @@ unsafe extern "system" fn mouse_hook_proc(code: i32, wparam: WPARAM, lparam: LPA
         }
     }
 
-    CallNextHookEx(null_mut(), code, wparam, lparam)
+    unsafe {CallNextHookEx(null_mut(), code, wparam, lparam)}
 }
 
 // ============================================================
@@ -196,38 +194,42 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
                 return 0;
             }
 
-            let state = (*createstruct).lpCreateParams as *mut OverlayState;
+            let state = unsafe { *createstruct }.lpCreateParams as *mut OverlayState;
 
             if state.is_null() {
                 return 0;
             }
 
-            SetWindowLongPtrW(hwnd, GWLP_USERDATA, state as isize);
+            unsafe {SetWindowLongPtrW(hwnd, GWLP_USERDATA, state as isize)};
 
-            (*state).hwnd = hwnd;
+            unsafe {(*state).hwnd = hwnd;}
 
             1
         }
 
         WM_DESTROY => {
-            PostQuitMessage(0);
+            unsafe {PostQuitMessage(0)};
             0
         }
 
         WM_PAINT => {
-            let mut ps: PAINTSTRUCT = zeroed();
+            unsafe {
+                let mut ps: PAINTSTRUCT = zeroed();
 
-            BeginPaint(hwnd, &mut ps);
-            EndPaint(hwnd, &ps);
+                BeginPaint(hwnd, &mut ps);
+                EndPaint(hwnd, &ps);
 
-            0
+                0
+
+            }
+
         }
 
         WM_NCHITTEST => HTTRANSPARENT_VALUE,
 
         WM_ERASEBKGND => 1,
 
-        _ => DefWindowProcW(hwnd, msg, wparam, lparam),
+        _ => unsafe {DefWindowProcW(hwnd, msg, wparam, lparam)},
     }
 }
 
@@ -338,7 +340,7 @@ pub fn run(app: impl OverlayApp + 'static) {
 
         let height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 
-        let mut state = match OverlayState::new(0 as HWND, x, y, width, height, Box::new(app)) {
+        let state = match OverlayState::new(0 as HWND, x, y, width, height, Box::new(app)) {
             Some(s) => s,
             None => return,
         };
