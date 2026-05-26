@@ -45,3 +45,8 @@ impl Random {
         &f[(self.seed as usize) % f.len()]
     }
 }
+impl Default for Random {
+    fn default() -> Random {
+        Random::new()
+    }
+}
