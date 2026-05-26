@@ -1,11 +1,11 @@
-//! A rust module for creating and managing images and screenshots.
+//! # Windows GDI Screen Capture Module
 //!
-//! ## Public Types and Functions
+//! This module provides synchronous, high-performance screen capture capabilities for Windows
+//! environments using the Win32 GDI (Graphics Device Interface) API.
 //!
-//! - `CaptureSession`: A session for capturing screen frames, enabling real-time video or image streaming.
-//! - `FrameImage`: A captured frame of screen content, typically represented as a pixel buffer.
-//! - `ImageSource`: Defines where screen content is sourced from (e.g., full screen, specific window).
-//! - `ImageView`: A view into a captured image, allowing for manipulation or display.
+//! It utilizes an in-memory Device Context (DC) paired with a Device-Independent Bitmap (DIB) Section
+//! to pull raw desktop frame bytes into user-space without triggering persistent heap allocations during capture.
+
 use std::{
     ffi::c_void,
     mem::{size_of, zeroed},
@@ -24,16 +24,12 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 use crate::image::common::*;
 use crate::image::frames::*;
-// ------------------------------
-// Image model
-// ------------------------------
 
-
-// ------------------------------
-// Capture backend
-// ------------------------------
-
-/// A capture session that captures a region of the screen, including optional layered windows.
+/// A managed Windows GDI screen capture session targeting a specific rectangular desktop region.
+///
+/// This session allocates persistent OS-native graphics handles (`HDC`, `HBITMAP`) upon creation.
+/// Frame captures are written directly into a pre-allocated memory buffer mapped to a DIB section,
+/// making the operation extremely efficient for game loops or real-time overlays.
 pub struct CaptureSession {
     rect: Rect,
     screen_dc: HDC,
@@ -64,7 +60,8 @@ impl Drop for CaptureSession {
 }
 
 impl CaptureSession {
-
+    /// Queries the OS for the aggregate dimensions of the entire virtual screen layout
+    /// (supporting multi-monitor environments).
     fn virtual_screen() -> Option<Rect> {
         unsafe {
             let x = GetSystemMetrics(SM_XVIRTUALSCREEN);
@@ -85,9 +82,14 @@ impl CaptureSession {
         }
     }
 
-    /// Creates a new instance of the type with DPI awareness enabled for the current process.
-    /// Returns `Some(CaptureSession)` if successful, otherwise `None` if the virtual screen bounds
-    /// could not be retrieved or another error occurred.
+    /// Creates a new capture session spanning the entire virtual screen area.
+    ///
+    /// Automatically forces the calling process to become DPI-Aware to ensure OS coordinate scaling
+    /// matches exact desktop pixel buffers.
+    ///
+    /// # Returns
+    /// * `Some(CaptureSession)` - If graphics contexts initialize successfully.
+    /// * `None` - If virtual desktop metrics query returns empty bounds.
     pub fn new() -> Option<Self> {
         unsafe {
             SetProcessDPIAware();
@@ -95,27 +97,26 @@ impl CaptureSession {
         Self::with_rect(CaptureSession::virtual_screen()?, true)
     }
 
-    /// Creates a new screen capture context for capturing a rectangular region of the screen.
+    /// Creates a localized screen capture context mapping a customized rectangular region.
     ///
     /// # Arguments
     ///
-    /// * `rect` - A `Rect` struct specifying the region of the screen to capture (in screen coordinates).
-    /// * `include_layered_windows` - A boolean flag indicating whether to include layered windows
-    ///   in the capture (e.g., transparent or overlay windows). If `true`, layered windows are rendered
-    ///   as part of the capture; if `false`, they are skipped.
+    /// * `rect` - Bounding constraints defining the target recording window in global desktop space.
+    /// * `include_layered_windows` - Set to `true` to force transparent/alpha-blended overlays
+    ///   (such as tooltips or alternative overlay widgets) to render into the captured buffer.
     ///
     /// # Returns
+    /// * `Some(CaptureSession)` - Fully configured and bound session ready to poll frames.
+    /// * `None` - If Win32 handle allocations (`GetDC`, `CreateCompatibleDC` or `CreateDIBSection`) fail.
     ///
-    /// Returns `Some(CaptureSession)` if the context is successfully created and initialized. Returns `None`
-    /// if any of the Windows API calls fail.
-    ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust,no_run
-    /// use overlay::image::{CaptureSession,Rect,ImageView};
+    /// use overlay::image::{CaptureSession, Rect};
+    ///
     /// let mut cap = CaptureSession::with_rect(Rect::new(0, 0, 800, 600), true).unwrap();
     /// if let Some(frame) = cap.capture() {
-    ///     //do stuff with your image :)
+    ///     assert_eq!(frame.width(), 800);
     /// }
     /// ```
     pub fn with_rect(rect: Rect, include_layered_windows: bool) -> Option<Self> {
@@ -136,6 +137,7 @@ impl CaptureSession {
             let mut bmi: BITMAPINFO = zeroed();
             bmi.bmiHeader.biSize = size_of::<BITMAPINFOHEADER>() as u32;
             bmi.bmiHeader.biWidth = rect.width;
+            // Negative height forces a top-down DIB layout matching standard array traversal constraints.
             bmi.bmiHeader.biHeight = -rect.height;
             bmi.bmiHeader.biPlanes = 1;
             bmi.bmiHeader.biBitCount = 32;
@@ -170,13 +172,23 @@ impl CaptureSession {
         }
     }
 
-    /// Returns a `Rect` representing the bounding rectangle of the object.
+    /// Returns the target coordinate bounds of this session.
     pub fn rect(&self) -> Rect {
         self.rect
     }
 
-    /// Captures the session rect into the persistent DIB.
-    /// No allocation happens here.
+    /// Polls the screen layout, filling the interior memory slice buffer with a fresh screen snapshot.
+    ///
+    /// This method performs **zero runtime allocations**. The memory block backing the returned
+    /// [`ImageView`] is managed entirely by the inner OS DIB structure and is overwritten on consecutive calls.
+    ///
+    /// # Safety and Lifetimes
+    ///
+    /// The returned `ImageView` holds an immutable reference bounded to the lifetime of this `CaptureSession`.
+    ///
+    /// # Returns
+    /// * `Some(ImageView)` - Containing volatile raw `u32` layout pixels if `BitBlt` transfers execute successfully.
+    /// * `None` - If the underlying Windows hardware block-transfer signals a failure state.
     pub fn capture(&mut self) -> Option<ImageView<'_>> {
         unsafe {
             let rop = if self.include_layered_windows {
@@ -214,11 +226,11 @@ impl CaptureSession {
         }
     }
 
-    /// Convenience if you need ownership.
+    /// Captures the current frame and deep-copies the pixel buffer into an independent, heap-allocated [`FrameImage`].
+    ///
+    /// Use this if you need to pass the captured frame across threads, cache it, or prevent subsequent calls to
+    /// `capture` from mutating its data content.
     pub fn capture_owned(&mut self) -> Option<FrameImage> {
         self.capture().map(|f| f.to_owned())
     }
 }
-
-
-
