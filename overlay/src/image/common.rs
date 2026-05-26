@@ -38,7 +38,7 @@ pub fn premul_rgba_bytes_to_u32(px: &[u8]) -> u32 {
 /// # Examples
 ///
 /// ```
-/// use overlay::capture::Rect;
+/// use overlay::image::common::Rect;
 /// let rect = Rect { x: 10, y: 20, width: 100, height: 50 };
 /// ```
 ///

@@ -1,21 +1,27 @@
-
+//! # Image Processing and Manipulation Module
+//!
+//! This module provides facilities for representing, viewing, and transforming 2D image buffers.
+//! It is built around efficient pixel manipulation using 32-bit unsigned integers (`u32`) 
+//! representing colors in **premultiplied RGBA** format.
+//!
+//! ## Core Components
+//!
+//! * [`FrameImage`]: An owned, heap-allocated 2D image buffer.
+//! * [`ImageView`]: A lightweight, non-owning structural view into a sub-region or an entire pixel buffer, supporting zero-copy operations.
+//! * [`ImageSource`]: A unified trait implemented by both `FrameImage` and `ImageView` exposing common geometric transformation interfaces.
 
 use crate::image::common::{premul_rgba_bytes_to_u32, rgba_premul, Color};
 
-/// Represents a frame image with width, height, and pixel data.
+/// Represents an owned frame image with width, height, and pixel data.
 ///
-/// This struct encapsulates a 2D image frame with dimensions and pixel data.
+/// This struct encapsulates a contiguous 2D image frame allocated on the heap.
+/// The pixel data is stored in row-major order.
 ///
-/// Fields:
-/// * `width`: The width of the image in pixels (i32).
-/// * `height`: The height of the image in pixels (i32).
-/// * `stride`: The number of pixels per row in the pixel buffer, which may differ from the width due to padding (usize).
-/// * `pixels`: A boxed slice of 32-bit unsigned integers representing the pixel data. Each pixel value is typically interpreted as a 32-bit color value (RGBA).
-///
-/// Note: The stride field allows for non-standard row alignment, which is useful for optimized memory access or when working with formats that require padding.
-///
-///
-/// This struct is designed to be cloned, enabling efficient copying of image data in memory-intensive operations.
+/// # Fields
+/// * `width`: The width of the image in pixels.
+/// * `height`: The height of the image in pixels.
+/// * `stride`: The number of pixels per row in the pixel buffer, which may include padding.
+/// * `pixels`: A boxed slice of 32-bit unsigned integers containing the premultiplied RGBA pixels.
 #[derive(Clone)]
 pub struct FrameImage {
     pub(super) width: i32,
@@ -25,15 +31,11 @@ pub struct FrameImage {
 }
 
 impl FrameImage {
-    /// Creates a new empty image with zero dimensions and no pixels.
-    ///
-    /// This function returns an image instance with width, height, and stride all set to 0,
-    /// and an empty pixel buffer. The resulting image has no pixels and is effectively
-    /// an empty canvas.
+    /// Creates a new empty image with zero dimensions and an empty pixel buffer.
     ///
     /// # Returns
     ///
-    /// A new `Self` instance representing an empty image.
+    /// A new `Self` instance representing an empty canvas.
     pub fn empty() -> Self {
         Self {
             width: 0,
@@ -42,42 +44,33 @@ impl FrameImage {
             pixels: Box::new([]),
         }
     }
-    /// Creates a new filled image with the specified width, height, and color.
+
+    /// Creates a new filled image with the specified width, height, and background color.
     ///
     /// # Arguments
     ///
-    /// * `width` - The width of the image in pixels. Must be positive.
-    /// * `height` - The height of the image in pixels. Must be positive.
-    /// * `color` - The color to fill the image with. The color is automatically converted to premultiplied alpha (premul) format.
+    /// * `width` - The width of the image in pixels. Must be greater than zero.
+    /// * `height` - The height of the image in pixels. Must be greater than zero.
+    /// * `color` - The background color to fill the image with. Internally converted to premultiplied alpha format.
     ///
     /// # Returns
     ///
-    /// A `Result` containing the newly created image if dimensions are valid, otherwise an `ImageError`.
-    ///
-    /// # Errors
-    ///
-    /// Returns `ImageError::InvalidDimensions` if either `width` or `height` is less than or equal to zero.
+    /// * `Some(FrameImage)` - If the dimensions are valid.
+    /// * `None` - If either `width` or `height` is less than or equal to zero.
     ///
     /// # Examples
     ///
+    /// ```rust
+    /// use overlay::image::FrameImage;
+    /// let image = FrameImage::filled(100, 100, (0, 0, 0, 255));
+    /// assert!(image.is_some());
     /// ```
-    /// use overlay::capture::FrameImage;
-    /// let image = FrameImage::filled(100, 100, (0,0,0,255));
-    /// assert!(image.is_ok());
-    /// ```
-    ///
-    /// # Notes
-    ///
-    /// - The image's pixel data is stored in row-major order.
-    /// - The stride is equal to the width in bytes, ensuring proper row alignment.
-    /// - The color is converted to premultiplied alpha format internally to ensure correct blending behavior.
     pub fn filled(width: i32, height: i32, color: Color) -> Option<Self> {
         if width <= 0 || height <= 0 {
             return None
         }
 
         let color = rgba_premul(color);
-
         let len = (width as usize) * (height as usize);
 
         Some(Self {
@@ -87,32 +80,27 @@ impl FrameImage {
             pixels: vec![color; len].into_boxed_slice(),
         })
     }
-    /// Creates a new image from raw premultiplied pixels.
-    ///
-    /// This function constructs an image from a vector of raw 32-bit unsigned integer pixels,
-    /// where each pixel is assumed to be premultiplied (i.e., alpha is already combined with RGB).
+
+    /// Creates a new image from an existing vector of raw premultiplied pixels.
     ///
     /// # Arguments
     ///
-    /// * `width` - The width of the image in pixels. Must be positive.
-    /// * `height` - The height of the image in pixels. Must be positive.
-    /// * `pixels` - A vector of `u32` values representing the raw pixel data.
+    /// * `width` - The width of the image in pixels. Must be greater than zero.
+    /// * `height` - The height of the image in pixels. Must be greater than zero.
+    /// * `pixels` - A vector of `u32` raw values representing premultiplied pixel data.
     ///
     /// # Returns
     ///
-    /// A `Result<Self, ImageError>` where:
-    /// * `Ok(image)` if the dimensions and pixel count match the expected size.
-    /// * `Err(ImageError::InvalidDimensions)` if the width or height is non-positive,
-    ///   or if the number of pixels does not match `width * height`.
+    /// * `Some(FrameImage)` - If dimensions are valid and match the provided pixel vector length exactly.
+    /// * `None` - If dimensions are non-positive, or if `width * height != pixels.len()`.
     ///
     /// # Examples
     ///
     /// ```rust
-    ///
-    /// use overlay::capture::FrameImage;
+    /// use overlay::image::FrameImage;
     /// let pixels = vec![0xFF0000FF, 0xFF00FF00, 0xFFFF0000, 0xFFFF0000];
     /// let image = FrameImage::from_raw_premultiplied(2, 2, pixels);
-    /// assert!(image.is_ok());
+    /// assert!(image.is_some());
     /// ```
     pub fn from_raw_premultiplied(
         width: i32,
@@ -134,32 +122,23 @@ impl FrameImage {
         })
     }
 
-    /// Creates a new `Self` instance from a slice of RGBA bytes.
-    ///
-    /// This function interprets a byte array containing RGBA pixel data and converts it into a
-    /// pixel buffer with premultiplied alpha. The input must be exactly `width * height * 4` bytes
-    /// long, with each pixel represented as 4 bytes (R, G, B, A).
+    /// Creates a new image from a slice of raw, straight RGBA bytes, converting them to premultiplied alpha.
     ///
     /// # Arguments
     ///
-    /// * `width` - The width of the image in pixels. Must be positive.
-    /// * `height` - The height of the image in pixels. Must be positive.
-    /// * `rgba_bytes` - A slice of bytes containing RGBA pixel data in row-major order.
+    /// * `width` - The width of the image in pixels. Must be greater than zero.
+    /// * `height` - The height of the image in pixels. Must be greater than zero.
+    /// * `rgba_bytes` - A contiguous byte slice containing flat `[R, G, B, A]` layout data.
     ///
     /// # Returns
     ///
-    /// A `Result` containing the newly created image instance, or an `ImageError` if:
-    /// - `width` or `height` is non-positive.
-    /// - The length of `rgba_bytes` does not match `width * height * 4`.
+    /// * `Some(FrameImage)` - If dimensions are valid and `rgba_bytes.len() == width * height * 4`.
+    /// * `None` - Otherwise.
     ///
     /// # Notes
     ///
-    /// - The input byte array is assumed to be in row-major order, with each pixel represented
-    ///   as `[R, G, B, A]` (each component 8 bits).
-    /// - The resulting pixel values are stored as premultiplied RGBA (`premul_rgba`) in a 32-bit
-    ///   integer format (i.e., `R * A / 255`, etc.).
-    /// - The output image has a stride equal to the width in pixels, and the pixel data is stored
-    ///   in a boxed slice for efficient memory access.
+    /// The input bytes are parsed sequentially into chunks of 4. Each chunk is processed into a
+    /// single `u32` with premultiplied alpha channels for performance optimizations during rendering.
     pub fn from_bytes_rgba(width: i32, height: i32, rgba_bytes: &[u8]) -> Option<Self> {
         if width <= 0 || height <= 0 {
             return None;
@@ -182,16 +161,13 @@ impl FrameImage {
         })
     }
 
-    /// Returns a slice referencing the underlying array of pixel values as `u32`.
-    ///
-    /// This method provides direct access to the raw pixel data stored in the structure.
-    /// The returned slice has the same lifetime as the current instance.
+    /// Returns a shared slice reference to the underlying flat array of pixel values.
     ///
     /// # Examples
     ///
     /// ```rust
-    ///use overlay::capture::FrameImage;
-    /// let image = FrameImage::from_raw_premultiplied(2,2,(&[1,2,3,4]).to_vec()).unwrap();
+    /// use overlay::image::FrameImage;
+    /// let image = FrameImage::from_raw_premultiplied(2, 2, vec![1, 2, 3, 4]).unwrap();
     /// let slice = image.as_slice();
     /// assert_eq!(slice[2], 3);
     /// ```
@@ -200,64 +176,35 @@ impl FrameImage {
         &self.pixels
     }
 
-    /// Returns a mutable reference to the underlying array of `u32` values that
-    /// represents the pixel data.
+    /// Returns a mutable slice reference to the underlying flat array of pixel values.
     ///
-    /// This method allows direct mutation of the pixel data through a slice
-    /// reference, enabling efficient operations such as pixel manipulation or
-    /// image processing.
+    /// This allows direct in-place mutation of pixel buffers for high-performance filters.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use overlay::capture::{FrameImage, Color};
-    /// let mut image = FrameImage::filled(100,100,(0,0,255,255)).expect("Cannot create image");
+    /// use overlay::image::FrameImage;
+    /// let mut image = FrameImage::filled(10, 10, (0, 0, 255, 255)).unwrap();
     /// let pixels = image.as_mut_slice();
-    /// pixels[0] = 255; // Set the first pixel to white
+    /// pixels[0] = 0xFFFFFFFF; // Mutate first pixel in-place
     /// ```
-    ///
-    /// # Safety
-    ///
-    /// The returned slice refers to the internal `pixels` field of the struct.
-    /// It is valid to use this reference only if the struct instance is not
-    /// being moved or mutated in a way that would invalidate the reference.
-    ///
-    /// # Notes
-    ///
-    /// This method is marked `#[inline]` to optimize performance by avoiding
-    /// function call overhead. It is intended to be used frequently in pixel
-    /// manipulation scenarios.
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [u32] {
         &mut self.pixels
     }
 
-    /// Creates an `ImageView` that provides a shared view into the pixel data of this image.
+    /// Creates a lightweight, structural [`ImageView`] referencing this image's pixel data.
     ///
-    /// This method returns a new `ImageView` instance that wraps a slice of the original pixel data,
-    /// allowing safe and efficient access to the image's pixels without copying.
+    /// Allows invoking zero-copy cropping or transformations over shared views.
     ///
-    /// The returned `ImageView` has the same dimensions and stride as the original image,
-    /// and the pixel data is accessed through a reference to the original buffer.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that the original image data is not dropped or modified while
-    /// the `ImageView` is in use, as it references the original pixel buffer.
-    ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust
-    /// use overlay::capture::{FrameImage,ImageView,ImageSource};
-    /// let image = FrameImage::filled(100,100,(42,42,42,42)).unwrap();
+    /// use overlay::image::{FrameImage, ImageSource};
+    /// let image = FrameImage::filled(100, 100, (42, 42, 42, 42)).unwrap();
     /// let view = image.view();
     /// assert_eq!(view.width(), 100);
-    /// assert_eq!(view.height(), 100);
     /// ```
-    ///
-    /// # Panics
-    ///
-    /// This method does not panic. It will always return a valid `ImageView`.
     pub fn view(&self) -> ImageView<'_> {
         ImageView {
             width: self.width,
@@ -269,11 +216,10 @@ impl FrameImage {
     }
 }
 
-/// A view into a buffer of 32-bit unsigned integers representing image pixels.
+/// A lightweight, non-owning reference view into an image buffer.
 ///
-/// This struct provides a safe and efficient way to access pixel data from a source buffer,
-/// with support for arbitrary strides and origin offsets. It is designed to be used with
-/// image data that may not be stored in a row-major format or may start at a non-zero offset.
+/// `ImageView` enables zero-copy image manipulations such as sub-region slicing (cropping)
+/// by keeping track of a structural `origin` offset and a row `stride` across a borrowed data buffer.
 #[derive(Clone, Copy)]
 pub struct ImageView<'a> {
     pub(super) width: i32,
@@ -284,6 +230,7 @@ pub struct ImageView<'a> {
 }
 
 impl<'a> ImageView<'a> {
+    /// Internal crop implementation. Returns a subview bounding box within the current view constraints.
     fn crop(&self, x: i32, y: i32, w: i32, h: i32) -> Option<ImageView<'a>> {
         if x < 0 || y < 0 || w <= 0 || h <= 0 {
             return None;
@@ -301,6 +248,7 @@ impl<'a> ImageView<'a> {
         })
     }
 
+    /// Allocates and constructs an owned fully deep-copied [`FrameImage`] out of this view.
     pub fn to_owned(&self) -> FrameImage {
         let mut out = vec![0u32; (self.width as usize) * (self.height as usize)];
         for y in 0..(self.height as usize) {
@@ -318,6 +266,7 @@ impl<'a> ImageView<'a> {
         }
     }
 
+    /// Resizes the structural view into a new owned [`FrameImage`] via standard nearest-neighbor scaling.
     fn resize_nearest(&self, dst_w: i32, dst_h: i32) -> FrameImage {
         if self.width <= 0 || self.height <= 0 || dst_w <= 0 || dst_h <= 0 {
             return FrameImage::empty();
@@ -348,6 +297,7 @@ impl<'a> ImageView<'a> {
         }
     }
 
+    /// Rotates the view 90 degrees clockwise, producing a new owned [`FrameImage`].
     fn rotate_90_cw(&self) -> FrameImage {
         if self.width <= 0 || self.height <= 0 {
             return FrameImage::empty();
@@ -355,7 +305,6 @@ impl<'a> ImageView<'a> {
 
         let dst_w = self.height;
         let dst_h = self.width;
-
         let mut out = vec![0u32; (dst_w as usize) * (dst_h as usize)];
 
         let sw = self.width as usize;
@@ -364,10 +313,8 @@ impl<'a> ImageView<'a> {
         for y in 0..sh {
             for x in 0..sw {
                 let src_px = self.pixels[self.origin + y * self.stride + x];
-
                 let dx = sh - 1 - y;
                 let dy = x;
-
                 out[dy * (dst_w as usize) + dx] = src_px;
             }
         }
@@ -380,6 +327,7 @@ impl<'a> ImageView<'a> {
         }
     }
 
+    /// Rotates the view 90 degrees counterclockwise, producing a new owned [`FrameImage`].
     fn rotate_90_ccw(&self) -> FrameImage {
         if self.width <= 0 || self.height <= 0 {
             return FrameImage::empty();
@@ -387,7 +335,6 @@ impl<'a> ImageView<'a> {
 
         let dst_w = self.height;
         let dst_h = self.width;
-
         let mut out = vec![0u32; (dst_w as usize) * (dst_h as usize)];
 
         let sw = self.width as usize;
@@ -396,10 +343,8 @@ impl<'a> ImageView<'a> {
         for y in 0..sh {
             for x in 0..sw {
                 let src_px = self.pixels[self.origin + y * self.stride + x];
-
                 let dx = y;
                 let dy = sw - 1 - x;
-
                 out[dy * (dst_w as usize) + dx] = src_px;
             }
         }
@@ -412,6 +357,7 @@ impl<'a> ImageView<'a> {
         }
     }
 
+    /// Rotates the structural view arbitrarily by specified degrees, returning a new bounding-box sized [`FrameImage`].
     fn rotate_degrees(&self, degrees: f32, background: Color) -> FrameImage {
         if self.width <= 0 || self.height <= 0 {
             return FrameImage::empty();
@@ -426,7 +372,6 @@ impl<'a> ImageView<'a> {
         let cx = (sw - 1.0) * 0.5;
         let cy = (sh - 1.0) * 0.5;
 
-        // Rotate the four corners to determine bounds.
         let corners = [
             (-cx, -cy),
             (sw - 1.0 - cx, -cy),
@@ -455,16 +400,11 @@ impl<'a> ImageView<'a> {
         let dcx = (dst_w as f32 - 1.0) * 0.5;
         let dcy = (dst_h as f32 - 1.0) * 0.5;
 
-        let sw_u = self.width as usize;
-        let sh_u = self.height as usize;
-        let _ = (sw_u, sh_u);
-
         for dy in 0..dst_h {
             for dx in 0..dst_w {
                 let x = dx as f32 - dcx;
                 let y = dy as f32 - dcy;
 
-                // Map destination -> source (inverse rotation)
                 let src_x = x * cos + y * sin + cx;
                 let src_y = -x * sin + y * cos + cy;
 
@@ -487,6 +427,7 @@ impl<'a> ImageView<'a> {
         }
     }
 
+    /// Flips the frame horizontally, returning a newly allocated owned [`FrameImage`].
     fn flip_horizontal(&self) -> FrameImage {
         if self.width <= 0 || self.height <= 0 {
             return FrameImage::empty();
@@ -494,7 +435,6 @@ impl<'a> ImageView<'a> {
 
         let w = self.width as usize;
         let h = self.height as usize;
-
         let mut out = vec![0u32; w * h];
 
         for y in 0..h {
@@ -514,6 +454,7 @@ impl<'a> ImageView<'a> {
         }
     }
 
+    /// Flips the frame vertically, returning a newly allocated owned [`FrameImage`].
     fn flip_vertical(&self) -> FrameImage {
         if self.width <= 0 || self.height <= 0 {
             return FrameImage::empty();
@@ -521,7 +462,6 @@ impl<'a> ImageView<'a> {
 
         let w = self.width as usize;
         let h = self.height as usize;
-
         let mut out = vec![0u32; w * h];
 
         for y in 0..h {
@@ -540,70 +480,29 @@ impl<'a> ImageView<'a> {
     }
 }
 
-// ------------------------------
-// ImageSource trait
-// ------------------------------
-
-/// `ImageSource` is a trait that defines the core interface for any image data source.
+/// A trait specifying the core reading interface and transformations for 2D image abstractions.
 ///
-/// It provides methods to access the image's dimensions, pixel data, and various image transformations.
-/// All operations are performed on a view of the raw pixel data, with methods that return new `FrameImage`
-/// instances to ensure the original image remains unmodified.
-///
-/// # Key Features
-///
-/// - `width()` and `height()` return the image dimensions in pixels.
-/// - `stride()` returns the byte stride of the pixel buffer (used for alignment or padding).
-/// - `pixels()` returns a slice to the raw pixel data, where each pixel is represented as a 32-bit unsigned integer.
-/// - `origin()` returns the starting index of the image data in the buffer (default is 0).
-///
-/// # Transformations
-///
-/// The trait supports common image operations:
-/// - `view()`: Returns an `ImageView` that provides a safe, immutable view into the pixel data.
-/// - `frame()`: Returns a fully owned `FrameImage` copy of the current image.
-/// - `crop()`: Creates a new `ImageView` representing a cropped region of the image (returns `None` if bounds are invalid).
-/// - `resize_nearest()`: Resizes the image using nearest-neighbor interpolation.
-/// - `rotate_90_cw()` and `rotate_90_ccw()`: Rotate the image 90 degrees clockwise or counterclockwise.
-/// - `rotate_degrees()`: Rotates the image by a specified number of degrees around its center, with optional background filling.
-/// - `flip_horizontal()` and `flip_vertical()`: Flip the image along the horizontal or vertical axis.
-///
-/// # Safety and Ownership
-///
-/// All transformations return new `FrameImage` instances. The original image is not modified.
-/// The `pixels()` method returns a slice, so it is valid only as long as the source data remains valid.
-///
-/// # Example Usage
-///
-/// ```rust
-/// use overlay::capture::{FrameImage,ImageSource};
-/// let image = FrameImage::filled(100,42,(255,255,0,24)).unwrap();
-/// let view = image.view();
-/// let rotated = image.rotate_90_cw();
-/// let cropped = image.crop(10, 10, 50, 50);
-/// ```
-///
-/// # Notes
-///
-/// - The pixel format is assumed to be 32-bit unsigned integers (u32), typically representing RGBA values.
-/// - All rotation and flip operations are performed around the image's center, with background filling where appropriate.
-/// - The `Color` type is assumed to be u32 representing an RGBA value.
+/// Implementors can safely expose dimensions, continuous raw pixels slice bounds, structural subviews, 
+/// or allocate geometric variations across buffers.
 pub trait ImageSource {
-    /// Returns the width of the object as an i32 value.
+    /// Returns the width of the image in pixels.
     fn width(&self) -> i32;
-    /// Returns the height of the object as an i32 value.
+
+    /// Returns the height of the image in pixels.
     fn height(&self) -> i32;
-    /// Returns the stride of the buffer.
+
+    /// Returns the line stride of the buffer **measured in pixels** (not raw bytes).
     fn stride(&self) -> usize;
 
-    /// Returns a slice referencing the raw pixel data of the image.
+    /// Returns a shared slice reference referencing the raw flat u32 pixel colors buffer.
     fn pixels(&self) -> &[u32];
-    /// Returns the origin index of the image (used for ImageView).
+
+    /// Returns the data container entry offset index (primarily utilized by non-zero structural [`ImageView`] slices).
     fn origin(&self) -> usize {
         0
     }
 
-    /// Creates an `ImageView` that provides a view into the pixel data of this image,
+    /// Instantiates an immutable zero-copy structural [`ImageView`] representation over this data source.
     #[inline]
     fn view(&self) -> ImageView<'_> {
         ImageView {
@@ -615,96 +514,58 @@ pub trait ImageSource {
         }
     }
 
-    /// Returns a copy of the current image as a `FrameImage`.
+    /// Deep-copies data out of the current layout reference, creating a fully allocated owned [`FrameImage`].
     #[inline]
     fn frame(&self) -> FrameImage {
         self.view().to_owned()
     }
 
-    /// Creates a new `ImageView` that represents a cropped region of the original image.
+    /// Creates a scoped rectangular structural subview bounded inside the current geometry.
+    ///
+    /// # Returns
+    /// * `Some(ImageView)` - If the bounded box dimensions are correctly aligned.
+    /// * `None` - If coordinates escape container boundaries.
     #[inline]
     fn crop(&self, x: i32, y: i32, w: i32, h: i32) -> Option<ImageView<'_>> {
         self.view().crop(x, y, w, h)
     }
 
-    /// Resizes the image using nearest-neighbor interpolation.
+    /// Scales the image dimensions using a fast nearest-neighbor algorithm, outputting an owned [`FrameImage`].
     #[inline]
     fn resize_nearest(&self, dst_w: i32, dst_h: i32) -> FrameImage {
         self.view().resize_nearest(dst_w, dst_h)
     }
 
-    /// Rotates the frame image 90 degrees clockwise.
-    ///
-    /// This method returns a new `FrameImage` that represents the original image rotated
-    /// 90 degrees clockwise. The rotation is performed on the view of the current frame,
-    /// and the original image remains unmodified.
-    ///
-    /// # Returns
-    ///
-    /// A new `FrameImage` object with the 90-degree clockwise rotation applied.
+    /// Rotates the layout view 90 degrees clockwise, outputting a separate owned [`FrameImage`].
     #[inline]
     fn rotate_90_cw(&self) -> FrameImage {
         self.view().rotate_90_cw()
     }
 
-    /// Rotates the image 90 degrees counterclockwise (CCW) around its center.
-    ///
-    /// This method returns a new `FrameImage` that represents the original image rotated
-    /// 90 degrees counterclockwise. The rotation is performed around the image's center,
-    /// preserving the original image and returning a separate instance of the rotated image.
-    ///
-    /// # Returns
-    ///
-    /// A new `FrameImage` object containing the rotated image.
+    /// Rotates the layout view 90 degrees counterclockwise, outputting a separate owned [`FrameImage`].
     #[inline]
     fn rotate_90_ccw(&self) -> FrameImage {
         self.view().rotate_90_ccw()
     }
 
-    /// Rotates the frame image by a specified number of degrees around its center,
-    /// with a background color filled behind the rotated image.
-    ///
-    /// This function applies a rotation transformation to the current frame image,
-    /// using the specified degrees to rotate the image counterclockwise around its center.
-    /// The background color is used to fill the area outside the rotated image.
+    /// Rotates the frame image layout by an arbitrary angle value around its bounding box center.
+    /// Empty padding areas are filled using the provided `background` parameter.
     ///
     /// # Arguments
-    ///
-    /// * `degrees` - The number of degrees to rotate the image. Positive values rotate
-    ///               counterclockwise, negative values rotate clockwise.
-    /// * `background` - The background color (as a 32-bit unsigned integer) used to fill
-    ///                  the area outside the rotated image.
-    ///
-    /// # Returns
-    ///
-    /// A new `FrameImage` object representing the rotated image with the specified background.
+    /// * `degrees` - Angle displacement value. Positive values trigger counterclockwise rotation.
+    /// * `background` - Background placeholder color filled into vacant border frames.
     #[inline]
     fn rotate_degrees(&self, degrees: f32, background: Color) -> FrameImage {
-
         self.view().rotate_degrees(degrees, background)
     }
 
-    /// Flips the image horizontally using the current view.
-    ///
-    /// This method creates a new `FrameImage` by flipping the current image along the horizontal axis.
-    /// The original image is not modified; a new instance is returned with the flipped content.
-    ///
-    /// # Returns
-    ///
-    /// A new `FrameImage` with the content flipped horizontally.
+    /// Inverts the image orientation along its vertical axis line, returning a clean owned [`FrameImage`].
     #[inline]
     fn flip_horizontal(&self) -> FrameImage {
         self.view().flip_horizontal()
     }
 
-    /// Flips the image vertically (top to bottom) using the current view.
-    ///
-    /// This method creates a new `FrameImage` by flipping the current image along the vertical axis,
-    /// effectively reversing the order of rows from top to bottom.
-    ///
-    /// # Returns
-    ///
-    /// A new `FrameImage` with the vertical flip applied.
+    /// Inverts the image orientation along its horizontal axis line, returning a clean owned [`FrameImage`].
     #[inline]
     fn flip_vertical(&self) -> FrameImage {
         self.view().flip_vertical()
@@ -743,5 +604,3 @@ impl<'a> ImageSource for ImageView<'a> {
         self.origin
     }
 }
-
-
