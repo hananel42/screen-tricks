@@ -1,4 +1,12 @@
-pub type Color = (u8, u8, u8, u8); // (r,g,b,a)
+/// Represents a color as a tuple of 8-bit channels: `(Red, Green, Blue, Alpha)`.
+pub type Color = (u8, u8, u8, u8);
+
+/// Converts a straight [`Color`] tuple into a single packed `u32` integer
+/// using **premultiplied alpha** layout (`0xAARRGGBB`).
+///
+/// This function multiplies each color channel (RGB) by the alpha channel,
+/// which optimizes blending performance for 2D rendering engines.
+/// It uses integer rounding `(value + 127) / 255` for high-accuracy conversion.
 #[inline]
 pub const fn rgba_premul(color: Color) -> u32 {
     let (r, g, b, a) = color;
@@ -9,6 +17,12 @@ pub const fn rgba_premul(color: Color) -> u32 {
     (a32 << 24) | (r32 << 16) | (g32 << 8) | b32
 }
 
+/// Converts a raw slice of straight RGBA bytes into a packed `u32` integer
+/// using **premultiplied alpha** layout (`0xAARRGGBB`).
+///
+/// # Panics
+///
+/// Panics if the input slice `px` has fewer than 4 elements.
 #[inline]
 pub fn premul_rgba_bytes_to_u32(px: &[u8]) -> u32 {
     let r = px[0] as u32;
@@ -21,34 +35,32 @@ pub fn premul_rgba_bytes_to_u32(px: &[u8]) -> u32 {
     (a << 24) | (r << 16) | (g << 8) | b
 }
 
-
-/// A 2D rectangle defined by its top-left corner (x, y) and dimensions (width, height).
+/// A 2D rectangle defined by its top-left corner `(x, y)` and its dimensions `(width, height)`.
 ///
-/// This struct represents a rectangle in a 2D coordinate system where the origin (0, 0) is typically
-/// in the top-left corner. The rectangle is defined by its position and size, with the
-/// top-left corner at (x, y) and extending right and down by width and height respectively.
+/// This struct represents a bounding box in a 2D coordinate system where the origin `(0, 0)` is
+/// located in the top-left corner of the screen, extending rightwards and downwards.
 ///
 /// # Fields
 ///
-/// * `x` - The x-coordinate of the top-left corner of the rectangle.
-/// * `y` - The y-coordinate of the top-left corner of the rectangle.
-/// * `width` - The width of the rectangle (horizontal size).
-/// * `height` - The height of the rectangle (vertical size).
+/// * `x` - The x-coordinate of the top-left corner.
+/// * `y` - The y-coordinate of the top-left corner.
+/// * `width` - The horizontal size of the rectangle in pixels.
+/// * `height` - The vertical size of the rectangle in pixels.
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// use overlay::image::common::Rect;
-/// let rect = Rect { x: 10, y: 20, width: 100, height: 50 };
+/// let rect = Rect::new(10, 20, 100, 50);
+/// assert_eq!(rect.width, 100);
+/// assert_eq!(rect.height, 50);
 /// ```
-///
-/// This creates a rectangle positioned at (10, 20) with a width of 100 and a height of 5.0.
 ///
 /// # Notes
 ///
-/// All fields are of type `i32`, allowing for large coordinate values. The rectangle does not
-/// perform bounds checking or validation on construction. It is the caller's responsibility to
-/// ensure valid dimensions and positions.
+/// All fields are stored as signed 32-bit integers (`i32`). This struct does not perform
+/// bounds validation upon construction. It is the caller's responsibility to ensure that
+/// `width` and `height` are non-negative where operations require valid geometric bounds.
 #[derive(Clone, Copy, Debug)]
 pub struct Rect {
     pub x: i32,
@@ -59,7 +71,8 @@ pub struct Rect {
 
 impl Rect {
     /// Creates a new rectangle with the specified position and dimensions.
-    pub fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
+    #[inline]
+    pub const fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
         Self { x, y, width, height }
     }
 }
