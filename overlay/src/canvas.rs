@@ -59,6 +59,38 @@ impl Canvas {
         }
     }
 
+    /// Writes a raw pixel color directly to the frame buffer at the specified sequential index.
+    ///
+    /// This function is designed for use in critical graphics rendering loops where performance
+    /// is the highest priority. Thanks to the `#[inline(always)]` attribute, the compiler will
+    /// attempt to embed this code directly at the call site, eliminating function call overhead.
+    ///
+    /// # Safety
+    ///
+    /// This method performs direct memory access and bypasses runtime bounds checking.
+    /// It is the caller's responsibility to ensure that:
+    /// * The index `idx` is strictly less than the total capacity of the frame buffer (`idx < self.len`).
+    ///
+    /// Passing an out-of-bounds index will result in **Undefined Behavior (UB)**, which can
+    /// cause memory corruption, visual artifacts, or an immediate program crash.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let idx = (y * canvas.width + x) as usize;
+    ///
+    /// // Bounds check is performed once outside or before calling the raw pixel write
+    /// if idx < canvas.len() {
+    ///     canvas.put_raw_pixel(idx, 0xFF00FF00); // Writes a solid green pixel (ARGB)
+    /// }
+    /// ```
+    #[inline(always)]
+    pub fn put_raw_pixel(&mut self, idx: usize, color: u32) {
+        unsafe {
+            *self.frame_mut().get_unchecked_mut(idx) = color;
+        }
+    }
+
     /// Completely clears a structural sub-region rectangle back to transparent (`0x00000000`).
     ///
     /// Optimized via vectorized chunk slice filling (`fill(0)`).
