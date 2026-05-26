@@ -69,7 +69,6 @@ impl OverlayApp for MyOverlayApp {
     ///
     /// This function advances the object's position by multiplying its velocity with the time delta.
     /// It also handles boundary collisions with the overlay context's boundaries.
-    ///
     fn update(&mut self, overlay_context: &mut OverlayContext, delta: f32) {
         self.y += self.vy * delta;
         self.x += self.vx * delta;
@@ -111,7 +110,6 @@ impl OverlayApp for MyOverlayApp {
 ///
 /// After initialization, the application is run using the `run` function, which handles the
 /// application lifecycle and rendering loop.
-///
 
 fn main() {
     let app = MyOverlayApp {
