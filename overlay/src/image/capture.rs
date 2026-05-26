@@ -13,6 +13,8 @@ use std::{
     slice,
 };
 
+use crate::image::common::*;
+use crate::image::frames::*;
 use windows_sys::Win32::Graphics::Gdi::{
     BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BitBlt, CAPTUREBLT, CreateCompatibleDC, CreateDIBSection,
     DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, HBITMAP, HDC, HGDIOBJ, ReleaseDC, SRCCOPY,
@@ -22,8 +24,6 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
     SetProcessDPIAware,
 };
-use crate::image::common::*;
-use crate::image::frames::*;
 
 /// A managed Windows GDI screen capture session targeting a specific rectangular desktop region.
 ///

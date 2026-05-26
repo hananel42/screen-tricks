@@ -13,10 +13,10 @@
 //! * **`ImageSource`**: The unifying trait that abstracts pixel data storage, enabling the
 //!   [`Canvas`](crate::Canvas) engine to read seamlessly from both live captured streams and static assets.
 
-pub mod common;
 pub mod capture;
+pub mod common;
 pub mod frames;
 
+pub use capture::*;
 pub use common::*;
 pub use frames::*;
-pub use capture::*;

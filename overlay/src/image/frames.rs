@@ -1,7 +1,7 @@
 //! # Image Processing and Manipulation Module
 //!
 //! This module provides facilities for representing, viewing, and transforming 2D image buffers.
-//! It is built around efficient pixel manipulation using 32-bit unsigned integers (`u32`) 
+//! It is built around efficient pixel manipulation using 32-bit unsigned integers (`u32`)
 //! representing colors in **premultiplied RGBA** format.
 //!
 //! ## Core Components
@@ -10,7 +10,7 @@
 //! * [`ImageView`]: A lightweight, non-owning structural view into a sub-region or an entire pixel buffer, supporting zero-copy operations.
 //! * [`ImageSource`]: A unified trait implemented by both `FrameImage` and `ImageView` exposing common geometric transformation interfaces.
 
-use crate::image::common::{premul_rgba_bytes_to_u32, rgba_premul, Color};
+use crate::image::common::{Color, premul_rgba_bytes_to_u32, rgba_premul};
 
 /// Represents an owned frame image with width, height, and pixel data.
 ///
@@ -67,7 +67,7 @@ impl FrameImage {
     /// ```
     pub fn filled(width: i32, height: i32, color: Color) -> Option<Self> {
         if width <= 0 || height <= 0 {
-            return None
+            return None;
         }
 
         let color = rgba_premul(color);
@@ -102,11 +102,7 @@ impl FrameImage {
     /// let image = FrameImage::from_raw_premultiplied(2, 2, pixels);
     /// assert!(image.is_some());
     /// ```
-    pub fn from_raw_premultiplied(
-        width: i32,
-        height: i32,
-        pixels: Vec<u32>,
-    ) -> Option<Self> {
+    pub fn from_raw_premultiplied(width: i32, height: i32, pixels: Vec<u32>) -> Option<Self> {
         if width <= 0 || height <= 0 {
             return None;
         }
@@ -482,7 +478,7 @@ impl<'a> ImageView<'a> {
 
 /// A trait specifying the core reading interface and transformations for 2D image abstractions.
 ///
-/// Implementors can safely expose dimensions, continuous raw pixels slice bounds, structural subviews, 
+/// Implementors can safely expose dimensions, continuous raw pixels slice bounds, structural subviews,
 /// or allocate geometric variations across buffers.
 pub trait ImageSource {
     /// Returns the width of the image in pixels.

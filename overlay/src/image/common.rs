@@ -73,6 +73,11 @@ impl Rect {
     /// Creates a new rectangle with the specified position and dimensions.
     #[inline]
     pub const fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
-        Self { x, y, width, height }
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 }

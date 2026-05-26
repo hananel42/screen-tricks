@@ -84,18 +84,18 @@ impl OverlayState {
         height: i32,
         app: Box<dyn OverlayApp>,
     ) -> Option<Box<Self>> {
-        let screen_dc = unsafe {GetDC(null_mut())};
+        let screen_dc = unsafe { GetDC(null_mut()) };
         if screen_dc.is_null() {
             return None;
         }
 
-        let mem_dc = unsafe {CreateCompatibleDC(screen_dc)};
+        let mem_dc = unsafe { CreateCompatibleDC(screen_dc) };
         if mem_dc.is_null() {
-            let _ = unsafe {ReleaseDC(null_mut(), screen_dc)};
+            let _ = unsafe { ReleaseDC(null_mut(), screen_dc) };
             return None;
         }
 
-        let mut bmi: BITMAPINFO = unsafe {zeroed()};
+        let mut bmi: BITMAPINFO = unsafe { zeroed() };
         bmi.bmiHeader.biSize = size_of::<BITMAPINFOHEADER>() as u32;
         bmi.bmiHeader.biWidth = width;
         bmi.bmiHeader.biHeight = -height;
@@ -104,16 +104,17 @@ impl OverlayState {
         bmi.bmiHeader.biCompression = BI_RGB;
 
         let mut bits: *mut c_void = null_mut();
-        let dib = unsafe {CreateDIBSection(screen_dc, &bmi, DIB_RGB_COLORS, &mut bits, null_mut(), 0)};
+        let dib =
+            unsafe { CreateDIBSection(screen_dc, &bmi, DIB_RGB_COLORS, &mut bits, null_mut(), 0) };
 
-        let _ = unsafe {ReleaseDC(null_mut(), screen_dc)};
+        let _ = unsafe { ReleaseDC(null_mut(), screen_dc) };
 
         if dib.is_null() || bits.is_null() {
-            let _ = unsafe {DeleteDC(mem_dc)};
+            let _ = unsafe { DeleteDC(mem_dc) };
             return None;
         }
 
-        let old_obj = unsafe {SelectObject(mem_dc, dib as HGDIOBJ)};
+        let old_obj = unsafe { SelectObject(mem_dc, dib as HGDIOBJ) };
         if old_obj.is_null() {
             unsafe {
                 let _ = DeleteObject(dib as HGDIOBJ);
@@ -206,6 +207,6 @@ impl OverlayState {
             )
         };
 
-        let _ = unsafe {ReleaseDC(null_mut(), screen_dc)};
+        let _ = unsafe { ReleaseDC(null_mut(), screen_dc) };
     }
 }

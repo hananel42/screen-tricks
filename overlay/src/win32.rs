@@ -1,8 +1,8 @@
 //! # Win32 Native Windowing and Hook Subsystem
 //!
 //! This module encapsulates the low-level Windows OS window lifecycle management.
-//! It registers window classes, spawns a borderless layered window (`WS_EX_LAYERED`), 
-//! instantiates global low-level OS input hooks (`WH_KEYBOARD_LL`, `WH_MOUSE_LL`), 
+//! It registers window classes, spawns a borderless layered window (`WS_EX_LAYERED`),
+//! instantiates global low-level OS input hooks (`WH_KEYBOARD_LL`, `WH_MOUSE_LL`),
 //! and orchestrates the primary real-time game/render loop using high-precision timers.
 
 use std::cmp::PartialEq;
@@ -43,7 +43,7 @@ pub enum EventResult {
     /// The event is consumed by the overlay application. It will **not** be passed down
     /// to the underlying windows or applications (swallowed input).
     Consumed,
-    /// The event is ignored or partially reacted to, allowing it to propagate normally 
+    /// The event is ignored or partially reacted to, allowing it to propagate normally
     /// through the OS down to target foreground applications.
     Propagated,
 }
@@ -69,13 +69,13 @@ pub enum OverlayEvent {
     /// A keyboard button pressed state trigger.
     KeyDown {
         /// The virtual key code identifier (e.g., `VK_ESCAPE`, `0x41` for 'A').
-        vk: u32
+        vk: u32,
     },
 
     /// A keyboard button released state trigger.
     KeyUp {
         /// The virtual key code identifier.
-        vk: u32
+        vk: u32,
     },
 
     /// Absolute hardware cursor position motion coordinates tracking.
@@ -83,25 +83,25 @@ pub enum OverlayEvent {
         /// Global desktop x-coordinate position.
         x: i32,
         /// Global desktop y-coordinate position.
-        y: i32
+        y: i32,
     },
 
     /// A mouse button pressed state trigger.
     MouseDown {
         /// The specific mouse button triggered.
-        button: MouseButton
+        button: MouseButton,
     },
 
     /// A mouse button released state trigger.
     MouseUp {
         /// The specific mouse button released.
-        button: MouseButton
+        button: MouseButton,
     },
 
     /// Vertical mouse wheel scrolling rotation delta tracker.
     MouseWheel {
         /// Rotation wheel travel step value (multiples of standard 120 units).
-        delta: i16
+        delta: i16,
     },
 }
 
@@ -113,8 +113,8 @@ static mut STATE_PTR: *mut OverlayState = null_mut();
 
 unsafe extern "system" fn keyboard_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
-        let kb = unsafe {&*(lparam as *const KBDLLHOOKSTRUCT)};
-        let state = unsafe {&mut *STATE_PTR};
+        let kb = unsafe { &*(lparam as *const KBDLLHOOKSTRUCT) };
+        let state = unsafe { &mut *STATE_PTR };
         match wparam as u32 {
             WM_KEYDOWN | WM_SYSKEYDOWN => {
                 if state.handle_event(OverlayEvent::KeyDown { vk: kb.vkCode })
@@ -136,7 +136,7 @@ unsafe extern "system" fn keyboard_hook_proc(code: i32, wparam: WPARAM, lparam: 
         }
     }
 
-    unsafe { CallNextHookEx(null_mut(), code, wparam, lparam)}
+    unsafe { CallNextHookEx(null_mut(), code, wparam, lparam) }
 }
 
 // ============================================================
@@ -145,8 +145,8 @@ unsafe extern "system" fn keyboard_hook_proc(code: i32, wparam: WPARAM, lparam: 
 
 unsafe extern "system" fn mouse_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
-        let mouse = unsafe {&*(lparam as *const MSLLHOOKSTRUCT)};
-        let state = unsafe {&mut *STATE_PTR};
+        let mouse = unsafe { &*(lparam as *const MSLLHOOKSTRUCT) };
+        let state = unsafe { &mut *STATE_PTR };
         match wparam as u32 {
             WM_MOUSEMOVE => {
                 if state.handle_event(OverlayEvent::MouseMove {
@@ -224,7 +224,7 @@ unsafe extern "system" fn mouse_hook_proc(code: i32, wparam: WPARAM, lparam: LPA
         }
     }
 
-    unsafe {CallNextHookEx(null_mut(), code, wparam, lparam)}
+    unsafe { CallNextHookEx(null_mut(), code, wparam, lparam) }
 }
 
 // ============================================================
@@ -246,30 +246,28 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
                 return 0;
             }
 
-            unsafe {SetWindowLongPtrW(hwnd, GWLP_USERDATA, state as isize)};
+            unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, state as isize) };
 
-            unsafe {(*state).hwnd = hwnd;}
+            unsafe {
+                (*state).hwnd = hwnd;
+            }
 
             1
         }
 
         WM_DESTROY => {
-            unsafe {PostQuitMessage(0)};
+            unsafe { PostQuitMessage(0) };
             0
         }
 
-        WM_PAINT => {
-            unsafe {
-                let mut ps: PAINTSTRUCT = zeroed();
+        WM_PAINT => unsafe {
+            let mut ps: PAINTSTRUCT = zeroed();
 
-                BeginPaint(hwnd, &mut ps);
-                EndPaint(hwnd, &ps);
+            BeginPaint(hwnd, &mut ps);
+            EndPaint(hwnd, &ps);
 
-                0
-
-            }
-
-        }
+            0
+        },
 
         // Forces the window frame to signal complete transparent mouse hittest transparency,
         // ensuring all standard click interactions click directly through into desktop elements behind it.
@@ -277,7 +275,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
 
         WM_ERASEBKGND => 1,
 
-        _ => unsafe {DefWindowProcW(hwnd, msg, wparam, lparam)},
+        _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
     }
 }
 
@@ -319,7 +317,7 @@ impl OverlayContext {
 
     /// Enables or disables structural OS screen recording exclusion bounds.
     ///
-    /// Setting this to `true` leverages `SetWindowDisplayAffinity` to turn the overlay black/invisible 
+    /// Setting this to `true` leverages `SetWindowDisplayAffinity` to turn the overlay black/invisible
     /// inside popular casting platforms, screenshots, OBS, or streaming layouts.
     pub fn hide_from_capture(&self, hide: bool) {
         unsafe {
@@ -366,13 +364,13 @@ pub trait OverlayApp {
 
 /// The core bootstrapping framework block execution initialization engine.
 ///
-/// Spawns the underlying Win32 window infrastructure, configures virtual monitor coordinates scaling layouts, 
-/// installs localized low-level intercept hardware hooks, and retains active main execution thread focus blocks 
+/// Spawns the underlying Win32 window infrastructure, configures virtual monitor coordinates scaling layouts,
+/// installs localized low-level intercept hardware hooks, and retains active main execution thread focus blocks
 /// until standard shutdown sequences exit.
 ///
 /// # Thread Safety
 ///
-/// This call actively hijacks execution flow focus limits on the caller thread to loop structural 
+/// This call actively hijacks execution flow focus limits on the caller thread to loop structural
 /// window polling hooks until structural `WM_QUIT` actions occur.
 pub fn run(app: impl OverlayApp + 'static) {
     unsafe {

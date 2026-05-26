@@ -9,9 +9,8 @@ use random::Random;
 
 use lexopt::ValueExt;
 use overlay::{
-    image::frames::ImageSource,
-    image::capture::CaptureSession,
-    Canvas, EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent, run
+    Canvas, EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent,
+    image::capture::CaptureSession, image::frames::ImageSource, run,
 };
 use std::process;
 

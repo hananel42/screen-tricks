@@ -1,14 +1,14 @@
 //! # Canvas Rendering and Blending Engine
 //!
-//! This module provides the core 2D rasterization and pixel-blending algorithms. 
-//! It features a raw-pointer backed [`Canvas`] surface that supports blitting imagery, 
-//! software-alpha pixel blending, primitive shape rendering, and text rasterization 
+//! This module provides the core 2D rasterization and pixel-blending algorithms.
+//! It features a raw-pointer backed [`Canvas`] surface that supports blitting imagery,
+//! software-alpha pixel blending, primitive shape rendering, and text rasterization
 //! via fixed-width font glyphs.
 
 use std::slice;
 
-use crate::image::frames::ImageSource;
 use crate::image::common::*;
+use crate::image::frames::ImageSource;
 use font8x8::{BASIC_FONTS, UnicodeFonts};
 
 /// A 2D flat bitmap surface for fast pixel rendering and composition.
@@ -44,7 +44,7 @@ impl Canvas {
 
     /// Composes a single raw channel color tuple at specific `(x, y)` pixel coordinates.
     ///
-    /// Automatically performs bounds checking. Alpha blending occurs automatically if 
+    /// Automatically performs bounds checking. Alpha blending occurs automatically if
     /// the target color contains an alpha value less than 255.
     pub fn put_pixel(&mut self, x: i32, y: i32, color: Color) {
         if x < 0 || y < 0 || x >= self.width || y >= self.height {
@@ -93,7 +93,7 @@ impl Canvas {
 
     /// Fills a bounded rectangular coordinates zone with a uniform color.
     ///
-    /// Automatically branches into a vectorized `fill` block if alpha is opaque (255), 
+    /// Automatically branches into a vectorized `fill` block if alpha is opaque (255),
     /// fallback-routing into sequential pixel blending steps under fractional alpha bounds.
     pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32, color: Color) {
         let color = rgba_premul(color);
@@ -218,7 +218,7 @@ impl Canvas {
 
     /// Blits an [`ImageSource`] container into a destination rectangle region, scaling it dynamically.
     ///
-    /// Employs optimized fixed-point bit shifting arithmetic (`<< 16`) to achieve seamless scaling 
+    /// Employs optimized fixed-point bit shifting arithmetic (`<< 16`) to achieve seamless scaling
     /// throughput speeds without relying on runtime floating-point hardware steps.
     #[inline]
     pub fn draw_image_scaled<T: ImageSource + ?Sized>(
@@ -283,7 +283,7 @@ impl Canvas {
         }
     }
 
-    /// Renders an affine-transformed imagery source backing arbitrary scale tracking, 
+    /// Renders an affine-transformed imagery source backing arbitrary scale tracking,
     /// rotative radian displacements, and specialized source pivot anchors.
     ///
     /// # Arguments
@@ -413,9 +413,7 @@ impl Canvas {
 
     /// Accesses the continuous underlying mutable frame memory buffer.
     unsafe fn frame_mut(&mut self) -> &mut [u32] {
-        unsafe {
-            slice::from_raw_parts_mut(self.bits, self.len)
-        }
+        unsafe { slice::from_raw_parts_mut(self.bits, self.len) }
     }
 
     /// Performs a high-accuracy, 32-bit software alpha blend overlay calculation over a single pixel location.

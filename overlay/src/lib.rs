@@ -23,14 +23,13 @@
 //! # Examples
 //!
 //! ```rust,no_run
- #![doc = include_str!("../examples/simple_video_rect.rs")]
+#![doc = include_str!("../examples/simple_video_rect.rs")]
 //! ```
 
 mod canvas;
 pub mod image;
 mod state;
 mod win32;
-
 
 pub use canvas::Canvas;
 pub use win32::{EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent, run};

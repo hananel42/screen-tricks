@@ -10,17 +10,19 @@
 //! The captured video frame is rendered at the current position with size constraints.
 
 use overlay::{
-    Canvas, EventResult, OverlayApp, OverlayContext, OverlayEvent, MouseButton, run,
-    image::capture::CaptureSession
+    Canvas, EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent,
+    image::capture::CaptureSession, run,
 };
-
 
 struct MyOverlayApp {
     capture_session: CaptureSession,
-    x:f32, y:f32, w:i32, h:i32,
-    vx:f32, vy:f32,
+    x: f32,
+    y: f32,
+    w: i32,
+    h: i32,
+    vx: f32,
+    vy: f32,
 }
-
 
 impl OverlayApp for MyOverlayApp {
     /// Initializes the component's dimensions and hides it from capture.
@@ -29,8 +31,8 @@ impl OverlayApp for MyOverlayApp {
     /// overlay context's dimensions. It also hides the component from capture to
     /// prevent it from being included in screen capture or rendering.
     fn init(&mut self, overlay_context: &mut OverlayContext) {
-        self.w = overlay_context.width()/5;
-        self.h = overlay_context.height()/5;
+        self.w = overlay_context.width() / 5;
+        self.h = overlay_context.height() / 5;
         overlay_context.hide_from_capture(true);
     }
 
@@ -40,19 +42,26 @@ impl OverlayApp for MyOverlayApp {
     /// - When the middle mouse button is pressed, it records the current mouse position as the position (x, y).
     /// - When the ESC key is pressed, it closes the overlay.
     /// - All other events are propagated to other handlers.
-    fn handler(&mut self, event: OverlayEvent, overlay_context: &mut OverlayContext) -> EventResult {
+    fn handler(
+        &mut self,
+        event: OverlayEvent,
+        overlay_context: &mut OverlayContext,
+    ) -> EventResult {
         match event {
-            OverlayEvent::MouseDown { button:MouseButton::Middle } => {
-                let (x,y) = overlay_context.mouse_position();
+            OverlayEvent::MouseDown {
+                button: MouseButton::Middle,
+            } => {
+                let (x, y) = overlay_context.mouse_position();
                 self.x = x as f32;
                 self.y = y as f32;
                 EventResult::Consumed
             }
-            OverlayEvent::KeyDown {vk:0x1B} => { //ESC
+            OverlayEvent::KeyDown { vk: 0x1B } => {
+                //ESC
                 overlay_context.close();
                 EventResult::Consumed
             }
-            _ => {EventResult::Propagated}
+            _ => EventResult::Propagated,
         }
     }
 
@@ -62,14 +71,20 @@ impl OverlayApp for MyOverlayApp {
     /// It also handles boundary collisions with the overlay context's boundaries.
     ///
     fn update(&mut self, overlay_context: &mut OverlayContext, delta: f32) {
-        self.y += self.vy*delta;
-        self.x += self.vx*delta;
-        if self.x < 0.0 {self.x = 0.0;self.vx = self.vx.abs()}
-        if self.x  > (overlay_context.width() - self.w) as f32 {
+        self.y += self.vy * delta;
+        self.x += self.vx * delta;
+        if self.x < 0.0 {
+            self.x = 0.0;
+            self.vx = self.vx.abs()
+        }
+        if self.x > (overlay_context.width() - self.w) as f32 {
             self.x = (overlay_context.width() - self.w) as f32;
             self.vx = -self.vx.abs();
         }
-        if self.y < 0.0 {self.y = 0.0;self.vy = self.vy.abs()}
+        if self.y < 0.0 {
+            self.y = 0.0;
+            self.vy = self.vy.abs()
+        }
         if self.y > (overlay_context.height() - self.h) as f32 {
             self.y = (overlay_context.height() - self.h) as f32;
             self.vy = -self.vy.abs();
@@ -80,9 +95,9 @@ impl OverlayApp for MyOverlayApp {
     /// If a frame is available from the capture session, this function clears the canvas
     /// and draws the frame scaled to fit within the specified rectangle defined by (x, y, w, h).
     fn render(&mut self, canvas: &mut Canvas) {
-        if let Some(frame) = self.capture_session.capture(){
+        if let Some(frame) = self.capture_session.capture() {
             canvas.clear();
-            canvas.draw_image_scaled(&frame,self.x as i32,self.y as i32,self.w,self.h);
+            canvas.draw_image_scaled(&frame, self.x as i32, self.y as i32, self.w, self.h);
         }
     }
 }
@@ -100,10 +115,13 @@ impl OverlayApp for MyOverlayApp {
 
 fn main() {
     let app = MyOverlayApp {
-        capture_session:CaptureSession::new().unwrap(),
-        x:0.0, y:0.0, w:0, h:0,
-        vx:100.0,
-        vy:42.0,
+        capture_session: CaptureSession::new().unwrap(),
+        x: 0.0,
+        y: 0.0,
+        w: 0,
+        h: 0,
+        vx: 100.0,
+        vy: 42.0,
     };
     run(app);
 }
