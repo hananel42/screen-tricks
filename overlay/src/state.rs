@@ -1,3 +1,9 @@
+//! # Internal Overlay Window State Manager
+//!
+//! This module handles the lifetime, event routing, and software-to-OS pixel
+//! presentation (`UpdateLayeredWindow`) for a Win32 layered overlay window.
+//!
+//! It encapsulates the core state mechanics safely away from the public API.
 use std::{
     ffi::c_void,
     mem::{size_of, zeroed},
@@ -19,6 +25,11 @@ use windows_sys::Win32::{
     UI::WindowsAndMessaging::UpdateLayeredWindow,
 };
 
+/// Internal state manager for a single active overlay window context.
+///
+/// This struct acts as the core bridge between the OS-level window handle (`HWND`),
+/// the memory-mapped graphics buffer ([`Canvas`]), and the user-defined application logic ([`OverlayApp`]).
+/// It orchestrates event dispatching, frame updates, and the final presentation to the screen.
 pub(super) struct OverlayState {
     pub(super) hwnd: HWND,
     mem_dc: HDC,
@@ -47,11 +58,24 @@ impl Drop for OverlayState {
     }
 }
 
+/// Helper utility that converts a standard Rust UTF-8 string slice into a
+/// null-terminated `Vec<u16>` wide string, which is required by Win32 API endpoints.
 pub(crate) fn wide_null(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
 impl OverlayState {
+    /// Allocates and initializes a new `OverlayState` context packaged inside a `Box`.
+    ///
+    /// This sets up an independent GDI Device Context (DC) and maps a 32-bit Device-Independent
+    /// Bitmap (DIB) backing memory block directly to the inner [`Canvas`]. This allows the framework
+    /// to support true per-pixel alpha channels needed for seamless transparent overlays.
+    ///
+    /// # Safety
+    ///
+    /// This function is unsafe because it accepts a raw Win32 `HWND` window handle. The caller
+    /// must guarantee that the provided handle points to a valid, un-dropped layered window
+    /// instance on the current thread.
     pub(crate) unsafe fn new(
         hwnd: HWND,
         x: i32,
@@ -136,6 +160,15 @@ impl OverlayState {
         self.app.update(&mut self.overlay_context, delta);
     }
 
+    /// Flushes the active in-memory bitmap structure into the Windows OS window compositing manager.
+    ///
+    /// It invokes `UpdateLayeredWindow` using standard alpha channels (`AC_SRC_ALPHA`), rendering
+    /// any graphics calculated inside the canvas onto the desktop screen with correct transparency rates.
+    ///
+    /// # Safety
+    ///
+    /// Interacts directly with OS internal graphic handles (`HDC`). Assumes that the underlying
+    /// hardware contexts allocated upon creation are still fully active and valid.
     pub(super) unsafe fn present(&self) {
         let screen_dc = unsafe { GetDC(null_mut()) };
         if screen_dc.is_null() {
@@ -173,7 +206,6 @@ impl OverlayState {
             )
         };
 
-
-    let _ = unsafe {ReleaseDC(null_mut(), screen_dc)};
+        let _ = unsafe {ReleaseDC(null_mut(), screen_dc)};
     }
 }
