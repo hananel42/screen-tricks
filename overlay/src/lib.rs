@@ -23,7 +23,7 @@
 //! # Examples
 //!
 //! ```rust,no_run
-//! #![doc = include_str!("../examples/simple_video_rect.rs")]
+ #![doc = include_str!("../examples/simple_video_rect.rs")]
 //! ```
 
 mod canvas;
