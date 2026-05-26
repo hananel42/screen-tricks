@@ -11,20 +11,3 @@ lexopt = "0.3.2"
 [[bin]]
 name = "wave"
 path = "src/main.rs"
-
-
-[profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-strip = true
-
-[profile.small]
-inherits = "release"
-opt-level = "z"
-lto = true
-codegen-units = 1
-strip = true
-panic = "abort"
-overflow-checks = false
-debug = false
