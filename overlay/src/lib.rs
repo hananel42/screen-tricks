@@ -31,6 +31,6 @@ pub mod image;
 mod state;
 mod win32;
 
-// חשיפת ה-API הציבורי בצורה מסודרת ונשקלת
+
 pub use canvas::Canvas;
 pub use win32::{EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent, run};
