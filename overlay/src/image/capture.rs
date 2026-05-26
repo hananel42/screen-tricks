@@ -112,7 +112,7 @@ impl CaptureSession {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use overlay::image::{CaptureSession, Rect};
+    /// use overlay::image::{CaptureSession, Rect, ImageSource};
     ///
     /// let mut cap = CaptureSession::with_rect(Rect::new(0, 0, 800, 600), true).unwrap();
     /// if let Some(frame) = cap.capture() {
