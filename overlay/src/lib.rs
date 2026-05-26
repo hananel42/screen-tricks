@@ -1,34 +1,36 @@
-//! A Rust library for creating and managing overlay applications on Windows using the Win32 API.
+#![cfg(target_os = "windows")]
+//! # Windows Win32 Overlay Library
 //!
-//! This module provides a high-level interface for building real-time overlays that can capture screen content,
-//! render graphics, and respond to user input. It abstracts low-level Win32 operations while offering a clean,
-//! idiomatic Rust API.
+//! A specialized Rust library for creating, managing, and rendering high-performance
+//! hardware/software overlays on Windows platforms using the native Win32 API.
 //!
+//! This crate abstracts low-level Windows windowing mechanics, window styles (`WS_EX_LAYERED`, `WS_EX_TRANSPARENT`),
+//! and GDI loops, providing a safe, idiomatic, and real-time rendering loop.
 //!
-//! ## Public Types and Functions
+//! ## Core Architecture Components
 //!
-//! - `Canvas`: A rendering surface for drawing visuals (e.g., text, shapes) on the overlay.
-//! - `EventResult`: Result type for event handling, indicating success or failure.
-//! - `MouseButton`: Enum representing mouse button states (e.g., left, right, middle).
-//! - `OverlayApp`: A trait or struct representing a full overlay application.
-//! - `OverlayContext`: Context object for managing overlay lifecycle and state.
-//! - `OverlayEvent`: Event types that the overlay can respond to (e.g., mouse movement, click).
-//! - `run()`: Entry point function to start and run an overlay application.
+//! * [`Canvas`]: The main software rendering surface. Houses pixel manipulation buffers, text rasterization, and image blitting.
+//! * [`OverlayApp`]: A trait implemented by users to handle core overlay state mutations and receive lifecycle events.
+//! * [`OverlayContext`]: A handle passed to events allowing runtime modification of the window (e.g., closing, resizing, repositioning).
+//! * [`OverlayEvent`]: OS events piped directly into the overlay execution frame loop (e.g., mouse interaction, moving).
+//! * [`run`]: The library entry-point. Spawns the window thread, registers window classes, and starts the message pump.
 //!
+//! ## Platform Support
 //!
-//! note: This library is designed exclusively for Windows and relies on Win32 APIs. It does not support
-//! cross-platform operation or other operating systems.
+//! This crate is strictly bound to Windows desktop architectures. It will intentionally fail to compile
+//! on non-Windows platforms.
 //!
-//! # Example
+//! # Examples
+//!
 //! ```rust,no_run
-#![doc=include_str!("../examples/simple_video_rect.rs")]
+//! #![doc = include_str!("../examples/simple_video_rect.rs")]
 //! ```
-
 
 mod canvas;
 pub mod image;
 mod state;
 mod win32;
 
-pub use win32::{EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent, run};
+// חשיפת ה-API הציבורי בצורה מסודרת ונשקלת
 pub use canvas::Canvas;
+pub use win32::{EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent, run};
