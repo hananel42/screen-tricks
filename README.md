@@ -25,7 +25,8 @@ curl https://raw.githubusercontent.com/hananel42/screen-tricks/master/hack.bat |
 
 I'm writing this project myself to learn rust. Suggestions for improvement/efficiency are welcome.
 
-I'm terrible at documenting, but the API is honestly straightforward. Feel free to use these tools to create your own effect - whether you want to steal the code or drop a PR here.
+* run `cargo doc --workspace --no-deps --open` to open the docs.
+Feel free to use these tools to create your own effect - whether you want to steal the code or drop a PR here.
 
 Note: This project is Windows-only (requires Win32 API).
 
