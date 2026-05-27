@@ -263,8 +263,6 @@ struct MyOverlayApp {
 
 impl OverlayApp for MyOverlayApp {
     fn init(&mut self, overlay_context: &mut OverlayContext) {
-        overlay_context.hide_from_capture(true);
-
         let width = overlay_context.width() as f32;
         let height = overlay_context.height() as f32;
 
