@@ -58,7 +58,7 @@ jobs:
         uses: swatinem/rust-cache@v2
 
       - name: Build Binaries
-        run: cargo build --release -p particles -p wave
+        run: cargo build --release -p particles -p wave -p triangulate
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
@@ -66,5 +66,6 @@ jobs:
           files: |
             target/release/particles.exe
             target/release/wave.exe
+            target/release/triangulate.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
