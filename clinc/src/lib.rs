@@ -27,10 +27,7 @@ pub enum ParseError {
     /// Occurs when a flag is encountered instead of an expected positional value.
     UnexpectedFlag(&'static str),
     /// Occurs when a value is found but fails to parse into the target type.
-    InvalidValue {
-        value: String,
-        error: String,
-    },
+    InvalidValue { value: String, error: String },
 }
 
 impl fmt::Display for ParseError {
@@ -65,7 +62,10 @@ impl Parser {
         let boxed_slice = args_vec.into_boxed_slice();
         let args_ptr = Box::into_raw(boxed_slice);
 
-        Parser { args_ptr, cursor: 0 }
+        Parser {
+            args_ptr,
+            cursor: 0,
+        }
     }
 
     /// Fetches the next CLI token, bound to the lifetime of the parser.

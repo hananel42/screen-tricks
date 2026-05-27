@@ -1,4 +1,5 @@
 mod delaunay;
+use clinc::{ParseError, Parser, Token};
 use delaunay::*;
 use overlay::image::{FrameImage, ImageSource};
 use overlay::{
@@ -6,7 +7,6 @@ use overlay::{
     image::capture::CaptureSession, run,
 };
 use random::*;
-use clinc::{ParseError, Parser, Token};
 pub const fn max_triangles(num_vertices: usize) -> usize {
     if num_vertices < 3 {
         0
@@ -393,12 +393,30 @@ fn print_help() {
     println!("USAGE:");
     println!("  overlay_app [OPTIONS]\n");
     println!("OPTIONS:");
-    println!("  -g, --gravity <f32>                 Set environmental gravity force [default: {}]", default_settings.gravity);
-    println!("  -r, --rotation-speed-jitter <f32>   Set multiplier value for spin jitters [default: {}]", default_settings.rotation_speed_jitter);
-    println!("      --max-speed <f32>               Set absolute maximum explosion limits [default: {}]", default_settings.max_speed);
-    println!("      --min-speed <f32>               Set base minimum structural velocity [default: {}]", default_settings.min_speed);
-    println!("  -j, --speed-jitter <f32>            Randomized speed offset variation [default: {}]", default_settings.speed_jitter);
-    println!("  -p, --points <usize>                Quantity of triangulation vertices generated [default: {}]", default_settings.points);
+    println!(
+        "  -g, --gravity <f32>                 Set environmental gravity force [default: {}]",
+        default_settings.gravity
+    );
+    println!(
+        "  -r, --rotation-speed-jitter <f32>   Set multiplier value for spin jitters [default: {}]",
+        default_settings.rotation_speed_jitter
+    );
+    println!(
+        "      --max-speed <f32>               Set absolute maximum explosion limits [default: {}]",
+        default_settings.max_speed
+    );
+    println!(
+        "      --min-speed <f32>               Set base minimum structural velocity [default: {}]",
+        default_settings.min_speed
+    );
+    println!(
+        "  -j, --speed-jitter <f32>            Randomized speed offset variation [default: {}]",
+        default_settings.speed_jitter
+    );
+    println!(
+        "  -p, --points <usize>                Quantity of triangulation vertices generated [default: {}]",
+        default_settings.points
+    );
     println!("  -h, --help                          Display this help information manual and exit");
 }
 
@@ -457,7 +475,10 @@ fn main() {
             std::process::exit(0);
         }
         Err(err) => {
-            eprintln!("Initialization Error: {}\nRun with --help to view valid option specifications.", err);
+            eprintln!(
+                "Initialization Error: {}\nRun with --help to view valid option specifications.",
+                err
+            );
             std::process::exit(1);
         }
     }
