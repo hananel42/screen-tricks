@@ -2,14 +2,22 @@
 setlocal enabledelayedexpansion
 
 set "REPO=hananel42/screen-tricks"
-set "FLAG=%~1"
+
+echo =================================
+echo  Select a Screen Effect:
+echo  [1] Particles
+echo  [2] Wave
+echo  [3] Triangulate
+echo =================================
+
+:: הטריק: קריאת קלט ישירות מהמקלדת הפיזית (CON) כדי שלא יישבר מה-Pipe
+for /f "delims=" %%A in ('powershell -Command "[Console]::In.ReadLine()" ^< CON') do set "choice=%%A"
+
 set "EFFECT=particles"
+if "%choice%"=="2" set "EFFECT=wave"
+if "%choice%"=="3" set "EFFECT=triangulate"
 
-:: בדיקת הדגל שהמשתמש שלח
-if "%FLAG%"=="-w" set "EFFECT=wave"
-if "%FLAG%"=="-t" set "EFFECT=triangulate"
-if "%FLAG%"=="-p" set "EFFECT=particles"
-
+echo.
 echo Launching %EFFECT%...
 
 powershell -Command ^
