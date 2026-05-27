@@ -24,6 +24,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+          fetch-depth: 0
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -34,13 +39,18 @@ jobs:
         uses: swatinem/rust-cache@v2
 
 
-      - name: Check formatting (fmt)
-        run: cargo fmt --all -- --check || echo "Formatting issues found, skipping block"
+      - name: Fix formatting (fmt)
+        run: cargo fmt --all
 
+
+      - name: Commit and Push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto-fix Rust code formatting"
+          file_pattern: "*.rs"
 
       - name: Run linter (clippy)
         run: cargo clippy --all-targets --all-features
-
 
   build-and-release:
     if: github.event_name == 'release'
