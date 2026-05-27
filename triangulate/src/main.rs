@@ -307,12 +307,11 @@ impl OverlayApp for MyOverlayApp {
                     self.is_shattered = self.captured_image.is_some();
                 }
             }
-            OverlayEvent::MouseMove { .. } => {
-                return EventResult::Propagated;
-            }
             _ => {}
         }
-        EventResult::Consumed
+
+
+        EventResult:: Propagated
     }
 
     fn update(&mut self, _overlay_context: &mut OverlayContext, delta: f32) {
