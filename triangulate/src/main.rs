@@ -310,8 +310,7 @@ impl OverlayApp for MyOverlayApp {
             _ => {}
         }
 
-
-        EventResult:: Propagated
+        EventResult::Propagated
     }
 
     fn update(&mut self, _overlay_context: &mut OverlayContext, delta: f32) {
