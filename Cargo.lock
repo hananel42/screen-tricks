@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "clinc"
+version = "0.1.0"
+
+[[package]]
 name = "font8x8"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -39,6 +43,7 @@ version = "0.1.0"
 name = "triangulate"
 version = "0.1.0"
 dependencies = [
+ "clinc",
  "overlay",
  "random",
 ]

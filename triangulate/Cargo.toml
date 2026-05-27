@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 overlay = {path = "../overlay"}
 random = {path = "../random"}
+clinc = {path = "../clinc"}

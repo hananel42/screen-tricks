@@ -6,7 +6,7 @@ use overlay::{
     image::capture::CaptureSession, run,
 };
 use random::*;
-
+use clinc::{ParseError, Parser, Token};
 pub const fn max_triangles(num_vertices: usize) -> usize {
     if num_vertices < 3 {
         0
@@ -362,6 +362,8 @@ impl OverlayApp for MyOverlayApp {
     }
 }
 
+// Mod declarations and original application structs (Points, Triangle, MyOverlayApp) remain exactly the same.
+
 struct Settings {
     gravity: f32,
     rotation_speed_jitter: f32,
@@ -384,16 +386,79 @@ impl Default for Settings {
     }
 }
 
+/// Prints a formatted application help manual directly to the standard output stream.
+fn print_help() {
+    let default_settings = Settings::default();
+    println!("Shatter Overlay Application - Configuration Manual\n");
+    println!("USAGE:");
+    println!("  overlay_app [OPTIONS]\n");
+    println!("OPTIONS:");
+    println!("  -g, --gravity <f32>                 Set environmental gravity force [default: {}]", default_settings.gravity);
+    println!("  -r, --rotation-speed-jitter <f32>   Set multiplier value for spin jitters [default: {}]", default_settings.rotation_speed_jitter);
+    println!("      --max-speed <f32>               Set absolute maximum explosion limits [default: {}]", default_settings.max_speed);
+    println!("      --min-speed <f32>               Set base minimum structural velocity [default: {}]", default_settings.min_speed);
+    println!("  -j, --speed-jitter <f32>            Randomized speed offset variation [default: {}]", default_settings.speed_jitter);
+    println!("  -p, --points <usize>                Quantity of triangulation vertices generated [default: {}]", default_settings.points);
+    println!("  -h, --help                          Display this help information manual and exit");
+}
+
+/// Parses command line arguments, handles automated help prints, or returns custom setup configuration errors.
+fn parse() -> Result<Option<Settings>, ParseError> {
+    let mut settings = Settings::default();
+    let mut parser = Parser::from_env();
+
+    while let Some(token) = parser.next() {
+        match token {
+            Token::Long("help") | Token::Short("h") => {
+                print_help();
+                return Ok(None); // Signifies that execution handled a command option successfully but should exit
+            }
+            Token::Long("gravity") | Token::Short("g") => {
+                settings.gravity = parser.parse()?;
+            }
+            Token::Long("rotation-speed-jitter") | Token::Short("r") => {
+                settings.rotation_speed_jitter = parser.parse()?;
+            }
+            Token::Long("max-speed") => {
+                settings.max_speed = parser.parse()?;
+            }
+            Token::Long("min-speed") => {
+                settings.min_speed = parser.parse()?;
+            }
+            Token::Long("speed-jitter") | Token::Short("j") => {
+                settings.speed_jitter = parser.parse()?;
+            }
+            Token::Long("points") | Token::Short("p") => {
+                settings.points = parser.parse()?;
+            }
+            _ => {}
+        }
+    }
+
+    Ok(Some(settings))
+}
+
 fn main() {
     let capture_session = CaptureSession::new().expect("Failed to initialize capture session");
 
-    let app = MyOverlayApp {
-        capture_session,
-        captured_image: None,
-        triangles: Vec::new(),
-        is_shattered: false,
-        settings: Settings::default(),
-    };
-
-    run(app);
+    match parse() {
+        Ok(Some(settings)) => {
+            let app = MyOverlayApp {
+                capture_session,
+                captured_image: None,
+                triangles: Vec::new(),
+                is_shattered: false,
+                settings,
+            };
+            run(app);
+        }
+        Ok(None) => {
+            // Help was successfully displayed; exit gracefully
+            std::process::exit(0);
+        }
+        Err(err) => {
+            eprintln!("Initialization Error: {}\nRun with --help to view valid option specifications.", err);
+            std::process::exit(1);
+        }
+    }
 }
