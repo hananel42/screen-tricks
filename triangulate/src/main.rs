@@ -1,3 +1,9 @@
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    fn AttachConsole(dw_process_id: u32) -> i32;
+}
+const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
 mod delaunay;
 use clinc::{ParseError, Parser, Token};
 use delaunay::*;
@@ -457,6 +463,10 @@ fn parse() -> Result<Option<Settings>, ParseError> {
 }
 
 fn main() {
+    unsafe {
+        AttachConsole(ATTACH_PARENT_PROCESS);
+    }
+
     let capture_session = CaptureSession::new().expect("Failed to initialize capture session");
 
     match parse() {
