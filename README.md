@@ -24,13 +24,13 @@ cargo run --release -p <project>
 
 ```
 
-### Fast Track (Particles Only)
+### Fast Track
 
 If you want to try the particles effect immediately without cloning manually, you can run the bootstrap batch file.
-*(Note: As a security best practice, feel free to inspect `hack.bat` in the repository before running).*
-
-```cmd
-curl [https://raw.githubusercontent.com/hananel42/screen-tricks/master/hack.bat](https://raw.githubusercontent.com/hananel42/screen-tricks/master/hack.bat) | cmd
+*(Note: As a security best practice, feel free to inspect `hack` in the repository before running).*
+run at powershell:
+```powershell
+irm https://raw.githubusercontent.com/hananel42/screen-tricks/main/hack | iex
 
 ```
 
