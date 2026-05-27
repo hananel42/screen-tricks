@@ -4,7 +4,7 @@ members = [
     "random",
     "particles",
     "wave"
-, "triangulate", "clinc", "notgoodthing"]
+, "triangulate", "clinc"]
 resolver = "3"
 
 
