@@ -61,9 +61,18 @@ pub fn triangulate(points: &[Point], screen_width: f32, screen_height: f32) -> V
     let mut triangulation = Vec::new();
 
     // 1. יצירת משולש-על (Super-Triangle) שמכיל את כל גבולות המסך בפער עצום
-    let super_p1 = Point { x: -screen_width * 10.0, y: -screen_height * 10.0 };
-    let super_p2 = Point { x: screen_width * 10.0, y: -screen_height * 10.0 };
-    let super_p3 = Point { x: screen_width * 0.5, y: screen_height * 10.0 };
+    let super_p1 = Point {
+        x: -screen_width * 10.0,
+        y: -screen_height * 10.0,
+    };
+    let super_p2 = Point {
+        x: screen_width * 10.0,
+        y: -screen_height * 10.0,
+    };
+    let super_p3 = Point {
+        x: screen_width * 0.5,
+        y: screen_height * 10.0,
+    };
 
     triangulation.push(Triangle::new(super_p1, super_p2, super_p3));
 
@@ -87,17 +96,26 @@ pub fn triangulate(points: &[Point], screen_width: f32, screen_height: f32) -> V
             for edge in edges {
                 let mut is_shared = false;
                 for &other_t in &bad_triangles {
-                    if other_t == t { continue; }
+                    if other_t == t {
+                        continue;
+                    }
 
-                    let other_edges = [(other_t.p1, other_t.p2), (other_t.p2, other_t.p3), (other_t.p3, other_t.p1)];
+                    let other_edges = [
+                        (other_t.p1, other_t.p2),
+                        (other_t.p2, other_t.p3),
+                        (other_t.p3, other_t.p1),
+                    ];
                     for other_edge in other_edges {
-                        if (edge.0 == other_edge.0 && edge.1 == other_edge.1) ||
-                            (edge.0 == other_edge.1 && edge.1 == other_edge.0) {
+                        if (edge.0 == other_edge.0 && edge.1 == other_edge.1)
+                            || (edge.0 == other_edge.1 && edge.1 == other_edge.0)
+                        {
                             is_shared = true;
                             break;
                         }
                     }
-                    if is_shared { break; }
+                    if is_shared {
+                        break;
+                    }
                 }
                 // אם הצלע לא משותפת עם אף משולש "רע" אחר, היא חלק מקו המתאר החיצוני
                 if !is_shared {
@@ -117,9 +135,15 @@ pub fn triangulate(points: &[Point], screen_width: f32, screen_height: f32) -> V
 
     // 3. ניקוי סופי: הסרת כל המשולשים שנוגעים בקודקודים של משולש-העל
     triangulation.retain(|t| {
-        !(t.p1 == super_p1 || t.p2 == super_p1 || t.p3 == super_p1 ||
-            t.p1 == super_p2 || t.p2 == super_p2 || t.p3 == super_p2 ||
-            t.p1 == super_p3 || t.p2 == super_p3 || t.p3 == super_p3)
+        !(t.p1 == super_p1
+            || t.p2 == super_p1
+            || t.p3 == super_p1
+            || t.p1 == super_p2
+            || t.p2 == super_p2
+            || t.p3 == super_p2
+            || t.p1 == super_p3
+            || t.p2 == super_p3
+            || t.p3 == super_p3)
     });
 
     triangulation

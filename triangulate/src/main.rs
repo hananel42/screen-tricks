@@ -1,9 +1,11 @@
 mod delaunay;
 use delaunay::*;
 use overlay::image::{FrameImage, ImageSource};
-use overlay::{image::capture::CaptureSession, run, Canvas, EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent};
+use overlay::{
+    Canvas, EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent,
+    image::capture::CaptureSession, run,
+};
 use random::*;
-
 
 pub const fn max_triangles(num_vertices: usize) -> usize {
     if num_vertices < 3 {
@@ -15,13 +17,29 @@ pub const fn max_triangles(num_vertices: usize) -> usize {
 
 /// פונקציית עזר למיון קודקודים לפי ציר ה-Y עבור אלגוריתם ה-Scanline
 #[inline(always)]
-fn sort_vertices(p1: Point, p2: Point, p3: Point, t1: Point, t2: Point, t3: Point) -> (Point, Point, Point, Point, Point, Point) {
+fn sort_vertices(
+    p1: Point,
+    p2: Point,
+    p3: Point,
+    t1: Point,
+    t2: Point,
+    t3: Point,
+) -> (Point, Point, Point, Point, Point, Point) {
     let (mut a, mut b, mut c) = (p1, p2, p3);
     let (mut ta, mut tb, mut tc) = (t1, t2, t3);
 
-    if b.y < a.y { std::mem::swap(&mut a, &mut b); std::mem::swap(&mut ta, &mut tb); }
-    if c.y < a.y { std::mem::swap(&mut a, &mut c); std::mem::swap(&mut ta, &mut tc); }
-    if c.y < b.y { std::mem::swap(&mut b, &mut c); std::mem::swap(&mut tb, &mut tc); }
+    if b.y < a.y {
+        std::mem::swap(&mut a, &mut b);
+        std::mem::swap(&mut ta, &mut tb);
+    }
+    if c.y < a.y {
+        std::mem::swap(&mut a, &mut c);
+        std::mem::swap(&mut ta, &mut tc);
+    }
+    if c.y < b.y {
+        std::mem::swap(&mut b, &mut c);
+        std::mem::swap(&mut tb, &mut tc);
+    }
 
     (a, b, c, ta, tb, tc)
 }
@@ -39,8 +57,12 @@ pub fn render_textured_triangle(
 
     // מיון הקודקודים מלמעלה למטה (y_a <= y_b <= y_c)
     let (a, b, c, ta, tb, tc) = sort_vertices(
-        dest_tri.p1, dest_tri.p2, dest_tri.p3,
-        src_tri.p1, src_tri.p2, src_tri.p3
+        dest_tri.p1,
+        dest_tri.p2,
+        dest_tri.p3,
+        src_tri.p1,
+        src_tri.p2,
+        src_tri.p3,
     );
 
     let y_a = a.y.round() as i32;
@@ -54,20 +76,28 @@ pub fn render_textured_triangle(
 
     // חישוב המטריצה ההופכית פעם אחת עבור אינטרפולציה של קואורדינטות טקסטורה (Affine Mapping)
     let den = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
-    if den.abs() < 0.00001 { return; }
+    if den.abs() < 0.00001 {
+        return;
+    }
     let inv_den = 1.0 / den;
 
     // פונקציה פנימית שמציירת קטע אופקי בין שתי נקודות (Scanline Segment)
     let mut draw_scanline = |y: i32, x1: f32, x2: f32| {
-        if y < 0 || y >= height { return; }
+        if y < 0 || y >= height {
+            return;
+        }
 
         let (mut start_x, mut end_x) = (x1.round() as i32, x2.round() as i32);
-        if start_x > end_x { std::mem::swap(&mut start_x, &mut end_x); }
+        if start_x > end_x {
+            std::mem::swap(&mut start_x, &mut end_x);
+        }
 
         start_x = start_x.max(0);
         end_x = end_x.min(width - 1);
 
-        if start_x > end_x { return; }
+        if start_x > end_x {
+            return;
+        }
 
         let y_f = y as f32 + 0.5;
         let dst_row_offset = (y * width) as usize;
@@ -158,7 +188,13 @@ struct TriangleState {
 }
 
 impl TriangleState {
-    pub fn new(src_tri: &Triangle, screen_width: f32, screen_height: f32, r: &mut Random, settings: &Settings) -> TriangleState {
+    pub fn new(
+        src_tri: &Triangle,
+        screen_width: f32,
+        screen_height: f32,
+        r: &mut Random,
+        settings: &Settings,
+    ) -> TriangleState {
         let cx = (src_tri.p1.x + src_tri.p2.x + src_tri.p3.x) / 3.0;
         let cy = (src_tri.p1.y + src_tri.p2.y + src_tri.p3.y) / 3.0;
 
@@ -235,11 +271,14 @@ impl OverlayApp for MyOverlayApp {
         let mut points = vec![Point { x: 0.0, y: 0.0 }; self.settings.points + 4];
         points[0] = Point { x: 0.0, y: 0.0 };
         points[1] = Point { x: width, y: 0.0 };
-        points[2] = Point { x: width, y: height };
+        points[2] = Point {
+            x: width,
+            y: height,
+        };
         points[3] = Point { x: 0.0, y: height };
 
         let mut r = Random::new();
-        for i in 4..self.settings.points+4 {
+        for i in 4..self.settings.points + 4 {
             points[i] = Point {
                 x: r.range(0.0, width),
                 y: r.range(0.0, height),
@@ -253,18 +292,27 @@ impl OverlayApp for MyOverlayApp {
             .collect();
     }
 
-    fn handler(&mut self, event: OverlayEvent, _overlay_context: &mut OverlayContext) -> EventResult {
+    fn handler(
+        &mut self,
+        event: OverlayEvent,
+        _overlay_context: &mut OverlayContext,
+    ) -> EventResult {
         match event {
-            OverlayEvent::KeyDown { vk: 0x1B } => { _overlay_context.close();},
-            OverlayEvent::MouseDown { button: MouseButton::Left } => {
+            OverlayEvent::KeyDown { vk: 0x1B } => {
+                _overlay_context.close();
+            }
+            OverlayEvent::MouseDown {
+                button: MouseButton::Left,
+            } => {
                 if !self.is_shattered {
                     self.captured_image = self.capture_session.capture().map(|t| t.to_owned());
                     self.is_shattered = self.captured_image.is_some();
                 }
-
-            },
-            OverlayEvent::MouseMove {..} => {return EventResult::Propagated;}
-            _ => {},
+            }
+            OverlayEvent::MouseMove { .. } => {
+                return EventResult::Propagated;
+            }
+            _ => {}
         }
         EventResult::Consumed
     }
@@ -274,7 +322,9 @@ impl OverlayApp for MyOverlayApp {
             let gravity = self.settings.gravity;
 
             // נבדוק כמה ליבות (Threads) זמינות לנו במעבד הנוכחי
-            let num_threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
+            let num_threads = std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(4);
 
             // נחשב כמה משולשים כל ליבה צריכה לקבל
             let chunk_size = (self.triangles.len() + num_threads - 1) / num_threads;
