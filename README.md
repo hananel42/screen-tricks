@@ -1,10 +1,11 @@
 # Screen Effects
 
-![preview](assets/wave.png)
+![preview](assets/triangulate.gif)
 
 A collection of lightweight Windows screen effects and tricks written in pure Rust.
 
 ## Projects
+* [triangulate](triangulate/README.md) - A very effective screen shatter.
 * [Particles](particles/README.md) - A real-time particle simulation overlay.
 * [Wave](wave/README.md) - A dynamic screen wave distortion effect.
 
@@ -14,7 +15,7 @@ A collection of lightweight Windows screen effects and tricks written in pure Ru
 This project requires **Windows** (uses native Win32 APIs) and the **Rust toolchain** installed.
 
 ### Standard Installation
-Clone the repository and run your preferred project (replace `<project>` with `particles` or `wave`):
+Clone the repository and run your preferred project (replace `<project>` with `particles` or `wave` or `triangulate`):
 
 ```cmd
 git clone [https://github.com/hananel42/screen-tricks.git](https://github.com/hananel42/screen-tricks.git)
