@@ -37,7 +37,7 @@ impl Random {
     }
     pub fn integer(&mut self, max: u32) -> u32 {
         self.seed = hash_u32(self.seed);
-        self.seed % (max + 1)
+        self.seed % (max)
     }
     #[inline(always)]
     pub fn choose<'a, F>(&mut self, f: &'a [F]) -> &'a F {
