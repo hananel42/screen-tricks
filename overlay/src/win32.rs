@@ -25,6 +25,7 @@ use crate::{
 };
 use windows_sys::Win32::Foundation::{HINSTANCE, POINT};
 use windows_sys::Win32::Graphics::Gdi::UpdateWindow;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_KEYUP, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT};
 
 pub(crate) const SW_SHOWNOACTIVATE: i32 = 4;
 pub(crate) const GWLP_USERDATA: i32 = -21;
@@ -340,6 +341,209 @@ impl OverlayContext {
             }
         }
     }
+
+    /// Synthesizes a discrete, asynchronous hardware keyboard keystroke event.
+    ///
+    /// This injects a structured sequential press and release structural sequence
+    /// directly into the OS input stream. The generated inputs are automatically flagged,
+    /// allowing internal low-level hooks to bypass tracking loops and prevent recursive
+    /// input deadlocks.
+    ///
+    /// # Arguments
+    /// * `vk_code` - The virtual key code mapping destination target (e.g., `0x41` for 'A').
+    pub fn send_keypress(&self, vk_code: u16) {
+        unsafe {
+            let mut input_down: INPUT = zeroed();
+            input_down.r#type = INPUT_KEYBOARD;
+            input_down.Anonymous.ki = KEYBDINPUT {
+                wVk: vk_code,
+                wScan: 0,
+                dwFlags: 0,
+                time: 0,
+                dwExtraInfo: 0,
+            };
+
+            let mut input_up: INPUT = zeroed();
+            input_up.r#type = INPUT_KEYBOARD;
+            input_up.Anonymous.ki = KEYBDINPUT {
+                wVk: vk_code,
+                wScan: 0,
+                dwFlags: KEYEVENTF_KEYUP,
+                time: 0,
+                dwExtraInfo: 0,
+            };
+
+            let mut inputs = [input_down, input_up];
+
+            SendInput(
+                inputs.len() as u32,
+                inputs.as_mut_ptr(),
+                size_of::<INPUT>() as i32,
+            );
+        }
+    }
+
+
+    /// Synthesizes and injects an asynchronous hardware input event into the OS stream.
+    ///
+    /// This translates the high-level `OverlayEvent` representation into raw, serialized
+    /// structural input payloads. The resulting operations are automatically flagged as injected,
+    /// instructing internal low-level event hooks to bypass tracking and prevent operational deadlocks.
+    ///
+    /// # Arguments
+    /// * `event` - A reference to the structural `OverlayEvent` targeted for system injection.
+    pub fn send_event(&self, event: &OverlayEvent) {
+        unsafe {
+            let mut inputs: Vec<INPUT> = Vec::new();
+
+            match event {
+                OverlayEvent::KeyDown { vk } => {
+                    let mut input = zeroed::<INPUT>();
+                    input.r#type = INPUT_KEYBOARD;
+                    input.Anonymous.ki = KEYBDINPUT {
+                        wVk: *vk as u16,
+                        wScan: 0,
+                        dwFlags: 0,
+                        time: 0,
+                        dwExtraInfo: 0,
+                    };
+                    inputs.push(input);
+                }
+
+                OverlayEvent::KeyUp { vk } => {
+                    let mut input = zeroed::<INPUT>();
+                    input.r#type = INPUT_KEYBOARD;
+                    input.Anonymous.ki = KEYBDINPUT {
+                        wVk: *vk as u16,
+                        wScan: 0,
+                        dwFlags: KEYEVENTF_KEYUP,
+                        time: 0,
+                        dwExtraInfo: 0,
+                    };
+                    inputs.push(input);
+                }
+
+                OverlayEvent::MouseMove { x, y } => {
+                    let mut input = zeroed::<INPUT>();
+                    input.r#type = INPUT_MOUSE;
+                    input.Anonymous.mi = MOUSEINPUT {
+                        dx: (*x * 65535) / self.width,
+                        dy: (*y * 65535) / self.height,
+                        mouseData: 0,
+                        dwFlags: MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
+                        time: 0,
+                        dwExtraInfo: 0,
+                    };
+                    inputs.push(input);
+                }
+
+                OverlayEvent::MouseDown { button } => {
+                    let mut input = zeroed::<INPUT>();
+                    input.r#type = INPUT_MOUSE;
+                    input.Anonymous.mi = MOUSEINPUT {
+                        dx: 0,
+                        dy: 0,
+                        mouseData: match button {
+                            MouseButton::X1 => 0x0001,
+                            MouseButton::X2 => 0x0002,
+                            _ => 0,
+                        },
+                        dwFlags: match button {
+                            MouseButton::Left => MOUSEEVENTF_LEFTDOWN,
+                            MouseButton::Right => MOUSEEVENTF_RIGHTDOWN,
+                            MouseButton::Middle => MOUSEEVENTF_MIDDLEDOWN,
+                            MouseButton::X1 | MouseButton::X2 => MOUSEEVENTF_XDOWN,
+                        },
+                        time: 0,
+                        dwExtraInfo: 0,
+                    };
+                    inputs.push(input);
+                }
+
+                OverlayEvent::MouseUp { button } => {
+                    let mut input = zeroed::<INPUT>();
+                    input.r#type = INPUT_MOUSE;
+                    input.Anonymous.mi = MOUSEINPUT {
+                        dx: 0,
+                        dy: 0,
+                        mouseData: match button {
+                            MouseButton::X1 => 0x0001,
+                            MouseButton::X2 => 0x0002,
+                            _ => 0,
+                        },
+                        dwFlags: match button {
+                            MouseButton::Left => MOUSEEVENTF_LEFTUP,
+                            MouseButton::Right => MOUSEEVENTF_RIGHTUP,
+                            MouseButton::Middle => MOUSEEVENTF_MIDDLEUP,
+                            MouseButton::X1 | MouseButton::X2 => MOUSEEVENTF_XUP,
+                        },
+                        time: 0,
+                        dwExtraInfo: 0,
+                    };
+                    inputs.push(input);
+                }
+
+                OverlayEvent::MouseWheel { delta } => {
+                    let mut input = zeroed::<INPUT>();
+                    input.r#type = INPUT_MOUSE;
+                    input.Anonymous.mi = MOUSEINPUT {
+                        dx: 0,
+                        dy: 0,
+                        mouseData: (*delta as u32) << 16,
+                        dwFlags: MOUSEEVENTF_WHEEL,
+                        time: 0,
+                        dwExtraInfo: 0,
+                    };
+                    inputs.push(input);
+                }
+            }
+
+            if !inputs.is_empty() {
+                SendInput(
+                    inputs.len() as u32,
+                    inputs.as_mut_ptr(),
+                    size_of::<INPUT>() as i32,
+                );
+            }
+        }
+    }
+
+    /// Mutates the global hardware cursor tracking position to the specified coordinates.
+    ///
+    /// This immediately moves the desktop mouse cursor to an absolute target position,
+    /// defined relative to the top-left corner of the primary virtual monitor space.
+    ///
+    /// # Arguments
+    /// * `x` - The absolute global desktop x-coordinate pixel destination.
+    /// * `y` - The absolute global desktop y-coordinate pixel destination.
+    /// # Example
+    /// ```rust
+    /// //trap - Reversing the mouse direction.
+    /// use overlay::{EventResult, OverlayEvent, OverlayContext, OverlayApp};
+    /// struct MyApp;
+    /// impl OverlayApp for MyApp {
+    ///     fn handler(&mut self, event:OverlayEvent, context:&mut OverlayContext) -> EventResult{
+    ///         match event {
+    ///             OverlayEvent::MouseMove { x, y } => {
+    ///                 let (src_x,src_y) = context.mouse_position();
+    ///                 context.set_mouse_position(src_x+(src_x-x),src_y+(src_y-y));
+    ///                 EventResult::Consumed
+    ///             }
+    ///             _ => {EventResult::Propagated}
+    ///         }
+    ///
+    ///     }
+    /// }
+    ///
+    ///
+    /// ```
+    pub fn set_mouse_position(&self, x: i32, y: i32) {
+        unsafe {
+            SetCursorPos(x, y);
+        }
+    }
+
+
 }
 
 // ============================================================
