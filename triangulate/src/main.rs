@@ -290,7 +290,10 @@ impl OverlayApp for MyOverlayApp {
                         };
                         points[3] = Point { x: 0.0, y: height };
                         let (x, y) = overlay_context.mouse_position();
-                        points[4] =Point {x:x as f32, y:y as f32};
+                        points[4] = Point {
+                            x: x as f32,
+                            y: y as f32,
+                        };
 
                         let mut r = Random::new();
                         for i in 5..self.settings.points + 5 {
