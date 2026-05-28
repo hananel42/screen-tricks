@@ -17,12 +17,16 @@ if ($choice -eq '3') { $effect = "triangulate" }
 
 
 
-$sourceTop = [Console]::CursorTop
-$targetTop = $sourceTop - 6
+$pos = $Host.UI.RawUI.CursorPosition
+$pos.Y = [Math]::Max(0, $pos.Y - 6)
+$pos.X = 0
+$Host.UI.RawUI.CursorPosition = $pos
 
+for ($i = 0; $i -lt 6; $i++) {
+    Write-Host (" " * $Host.UI.RawUI.WindowSize.Width) -NoNewline
+}
+$Host.UI.RawUI.CursorPosition = $pos
 
-[Console]::MoveBufferArea(0, $sourceTop, [Console]::BufferWidth, 1, 0, $targetTop)
-[Console]::SetCursorPosition(0, $targetTop)
 
 
 Write-Host "Launching $effect..." -ForegroundColor Green
