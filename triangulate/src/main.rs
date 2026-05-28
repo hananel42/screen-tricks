@@ -50,7 +50,6 @@ fn sort_vertices(
     (a, b, c, ta, tb, tc)
 }
 
-/// רסטריזציה אופטימלית בגישת Scanline ללא כפל בלולאה הפנימית וללא Bounds Checking מיותר
 pub fn render_textured_triangle(
     src_image: &impl ImageSource,
     src_tri: Triangle,
@@ -61,7 +60,6 @@ pub fn render_textured_triangle(
     let height = src_image.height();
     let src_pixels = src_image.pixels();
 
-    // מיון הקודקודים מלמעלה למטה (y_a <= y_b <= y_c)
     let (a, b, c, ta, tb, tc) = sort_vertices(
         dest_tri.p1,
         dest_tri.p2,
@@ -75,19 +73,16 @@ pub fn render_textured_triangle(
     let y_b = b.y.round() as i32;
     let y_c = c.y.round() as i32;
 
-    // הגנה מפני משולשים שטוחים לחלוטין או מחוץ למסך
     if y_a == y_c || y_c < 0 || y_a >= height {
         return;
     }
 
-    // חישוב המטריצה ההופכית פעם אחת עבור אינטרפולציה של קואורדינטות טקסטורה (Affine Mapping)
     let den = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
     if den.abs() < 0.00001 {
         return;
     }
     let inv_den = 1.0 / den;
 
-    // פונקציה פנימית שמציירת קטע אופקי בין שתי נקודות (Scanline Segment)
     let mut draw_scanline = |y: i32, x1: f32, x2: f32| {
         if y < 0 || y >= height {
             return;
@@ -108,7 +103,7 @@ pub fn render_textured_triangle(
         let y_f = y as f32 + 0.5;
         let dst_row_offset = (y * width) as usize;
 
-        // חישוב קואורדינטות הטקסטורה של הפיקסל הראשון בשורה (start_x)
+
         let x_f = start_x as f32 + 0.5;
         let w0 = ((b.y - c.y) * (x_f - c.x) + (c.x - b.x) * (y_f - c.y)) * inv_den;
         let w1 = ((c.y - a.y) * (x_f - c.x) + (a.x - c.x) * (y_f - c.y)) * inv_den;
@@ -117,8 +112,7 @@ pub fn render_textured_triangle(
         let mut tex_x = w0 * ta.x + w1 * tb.x + w2 * tc.x;
         let mut tex_y = w0 * ta.y + w1 * tb.y + w2 * tc.y;
 
-        // חישוב הצעד האופקי (הדלתא) בטקסטורה במעבר של פיקסל אחד ימינה ב-X
-        // נגזר ישירות מהמטריצה ההופכית: d/dx
+
         let dw0_dx = (b.y - c.y) * inv_den;
         let dw1_dx = (c.y - a.y) * inv_den;
         let dw2_dx = -dw0_dx - dw1_dx;
@@ -126,7 +120,7 @@ pub fn render_textured_triangle(
         let dtex_x = dw0_dx * ta.x + dw1_dx * tb.x + dw2_dx * tc.x;
         let dtex_y = dw0_dx * ta.y + dw1_dx * tb.y + dw2_dx * tc.y;
 
-        // הלולאה הכי פנימית - אופטימיזציה מקסימלית (רק חיבורים, ללא תנאים וללא Bounds Check)
+
         for x in start_x..=end_x {
             let src_x = (tex_x as i32).clamp(0, width - 1);
             let src_y = (tex_y as i32).clamp(0, height - 1);
@@ -134,19 +128,18 @@ pub fn render_textured_triangle(
             let src_idx = (src_y * width + src_x) as usize;
             let dst_idx = dst_row_offset + x as usize;
 
-            // שימוש ב-get_unchecked מאפשר למהדר להוריד את מנגנון ההגנה של רוסט שמאיט לולאות גרפיקה
             unsafe {
                 let pixel = *src_pixels.get_unchecked(src_idx);
                 canvas.put_raw_pixel(dst_idx, pixel);
             }
 
-            // צעד אינקרמנטלי לפיקסל הבא
+
             tex_x += dtex_x;
             tex_y += dtex_y;
         }
     };
 
-    // --- שלב 1: חלק עליון של המשולש (Flat-Top / Standard Top Half) ---
+
     if y_b > y_a {
         let slope_ac = (c.x - a.x) / (c.y - a.y);
         let slope_ab = (b.x - a.x) / (b.y - a.y);
@@ -162,7 +155,7 @@ pub fn render_textured_triangle(
         }
     }
 
-    // --- שלב 2: חלק תחתון של המשולש (Flat-Bottom / Standard Bottom Half) ---
+
     if y_c > y_b {
         let slope_ac = (c.x - a.x) / (c.y - a.y);
         let slope_bc = (c.x - b.x) / (c.y - b.y);
@@ -196,18 +189,16 @@ struct TriangleState {
 impl TriangleState {
     pub fn new(
         src_tri: &Triangle,
-        screen_width: f32,
-        screen_height: f32,
+        x: i32,
+        y: i32,
         r: &mut Random,
         settings: &Settings,
     ) -> TriangleState {
         let cx = (src_tri.p1.x + src_tri.p2.x + src_tri.p3.x) / 3.0;
         let cy = (src_tri.p1.y + src_tri.p2.y + src_tri.p3.y) / 3.0;
 
-        let mid_x = screen_width / 2.0;
-        let mid_y = screen_height / 2.0;
-        let mut dir_x = cx - mid_x;
-        let mut dir_y = cy - mid_y;
+        let mut dir_x = cx - x as f32;
+        let mut dir_y = cy - y as f32;
 
         let dist = (dir_x * dir_x + dir_y * dir_y).sqrt().max(1.0);
         dir_x /= dist;
@@ -229,7 +220,6 @@ impl TriangleState {
         }
     }
 
-    // הפיכת הפונקציה למקבלת ערכים מחושבים מראש של קוסינוס וסינוס (מונע חישוב כפול לכל קודקוד)
     #[inline(always)]
     pub fn rotate_and_translate(&mut self) {
         let cos_r = self.current_rot.cos();
@@ -268,42 +258,22 @@ struct MyOverlayApp {
 }
 
 impl OverlayApp for MyOverlayApp {
-    fn init(&mut self, overlay_context: &mut OverlayContext) {
-        let width = overlay_context.width() as f32;
-        let height = overlay_context.height() as f32;
-
-        let mut points = vec![Point { x: 0.0, y: 0.0 }; self.settings.points + 4];
-        points[0] = Point { x: 0.0, y: 0.0 };
-        points[1] = Point { x: width, y: 0.0 };
-        points[2] = Point {
-            x: width,
-            y: height,
-        };
-        points[3] = Point { x: 0.0, y: height };
-
-        let mut r = Random::new();
-        for i in 4..self.settings.points + 4 {
-            points[i] = Point {
-                x: r.range(0.0, width),
-                y: r.range(0.0, height),
-            };
-        }
-
-        let mut r_state = Random::new();
-        self.triangles = triangulate(&points, width, height)
-            .iter()
-            .map(|x| TriangleState::new(x, width, height, &mut r_state, &self.settings))
-            .collect();
-    }
-
     fn handler(
         &mut self,
         event: OverlayEvent,
-        _overlay_context: &mut OverlayContext,
+        overlay_context: &mut OverlayContext,
     ) -> EventResult {
         match event {
-            OverlayEvent::KeyDown { vk: 0x1B } => {
-                _overlay_context.close();
+            OverlayEvent::KeyDown { vk } => {
+                match vk {
+                    0x1B => {overlay_context.close();} //ESC
+                    0x13 => {
+                        self.is_shattered = false;
+                        self.captured_image = None;
+                        self.triangles.clear();
+                    } //R
+                    _ => {}
+                }
             }
             OverlayEvent::MouseDown {
                 button: MouseButton::Left,
@@ -311,6 +281,33 @@ impl OverlayApp for MyOverlayApp {
                 if !self.is_shattered {
                     self.captured_image = self.capture_session.capture().map(|t| t.to_owned());
                     self.is_shattered = self.captured_image.is_some();
+                    if self.is_shattered {
+                        let width = overlay_context.width() as f32;
+                        let height = overlay_context.height() as f32;
+
+                        let mut points = vec![Point { x: 0.0, y: 0.0 }; self.settings.points + 4];
+                        points[0] = Point { x: 0.0, y: 0.0 };
+                        points[1] = Point { x: width, y: 0.0 };
+                        points[2] = Point {
+                            x: width,
+                            y: height,
+                        };
+                        points[3] = Point { x: 0.0, y: height };
+
+                        let mut r = Random::new();
+                        for i in 4..self.settings.points + 4 {
+                            points[i] = Point {
+                                x: r.range(0.0, width),
+                                y: r.range(0.0, height),
+                            };
+                        }
+                        let (x,y) = overlay_context.mouse_position();
+                        let mut r_state = Random::new();
+                        self.triangles = triangulate(&points, width, height)
+                            .iter()
+                            .map(|triangle| TriangleState::new(triangle, x, y, &mut r_state, &self.settings))
+                            .collect();
+                    }
                 }
             }
             _ => {}
@@ -323,16 +320,14 @@ impl OverlayApp for MyOverlayApp {
         if self.is_shattered {
             let gravity = self.settings.gravity;
 
-            // נבדוק כמה ליבות (Threads) זמינות לנו במעבד הנוכחי
+
             let num_threads = std::thread::available_parallelism()
                 .map(|n| n.get())
                 .unwrap_or(4);
 
-            // נחשב כמה משולשים כל ליבה צריכה לקבל
             let chunk_size = (self.triangles.len() + num_threads - 1) / num_threads;
 
             if chunk_size > 0 {
-                // מפצלים את המערך לחלקים (Chunks) ורצים עליהם ב-Threads נפרדים
                 std::thread::scope(|s| {
                     for chunk in self.triangles.chunks_mut(chunk_size) {
                         s.spawn(move || {
@@ -353,14 +348,12 @@ impl OverlayApp for MyOverlayApp {
 
     fn render(&mut self, canvas: &mut Canvas) {
         if !self.is_shattered {
+            canvas.clear();
             return;
         }
 
         if let Some(ref frame) = self.captured_image {
             canvas.fill((0, 0, 0, 255));
-
-            // שלב הציור רץ סדרתית כדי למנוע בעיות סנכרון (Race Conditions) על הבאפר המשותף של הקנבס,
-            // אך הודות לאלגוריתם ה-Scanline המהיר, הציור יתבצע במהירות חלקה (60FPS ומעלה בקלות).
             for triangle in &self.triangles {
                 triangle.render(canvas, frame);
             }
@@ -368,7 +361,6 @@ impl OverlayApp for MyOverlayApp {
     }
 }
 
-// Mod declarations and original application structs (Points, Triangle, MyOverlayApp) remain exactly the same.
 
 struct Settings {
     gravity: f32,
