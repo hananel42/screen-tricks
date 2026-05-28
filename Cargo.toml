@@ -3,8 +3,10 @@ members = [
     "overlay",
     "random",
     "particles",
-    "wave"
-, "triangulate", "clinc"]
+    "wave",
+    "triangulate",
+    "clinc",
+]
 resolver = "3"
 
 
