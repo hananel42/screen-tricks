@@ -25,7 +25,12 @@ use crate::{
 };
 use windows_sys::Win32::Foundation::{HINSTANCE, POINT};
 use windows_sys::Win32::Graphics::Gdi::UpdateWindow;
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_KEYUP, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+    INPUT, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_KEYUP, MOUSEEVENTF_ABSOLUTE,
+    MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
+    MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL,
+    MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, SendInput,
+};
 
 pub(crate) const SW_SHOWNOACTIVATE: i32 = 4;
 pub(crate) const GWLP_USERDATA: i32 = -21;
@@ -383,7 +388,6 @@ impl OverlayContext {
         }
     }
 
-
     /// Synthesizes and injects an asynchronous hardware input event into the OS stream.
     ///
     /// This translates the high-level `OverlayEvent` representation into raw, serialized
@@ -542,8 +546,6 @@ impl OverlayContext {
             SetCursorPos(x, y);
         }
     }
-
-
 }
 
 // ============================================================
