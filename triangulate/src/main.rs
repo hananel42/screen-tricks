@@ -281,7 +281,7 @@ impl OverlayApp for MyOverlayApp {
                         let width = overlay_context.width() as f32;
                         let height = overlay_context.height() as f32;
 
-                        let mut points = vec![Point { x: 0.0, y: 0.0 }; self.settings.points + 4];
+                        let mut points = vec![Point { x: 0.0, y: 0.0 }; self.settings.points + 5];
                         points[0] = Point { x: 0.0, y: 0.0 };
                         points[1] = Point { x: width, y: 0.0 };
                         points[2] = Point {
@@ -289,22 +289,24 @@ impl OverlayApp for MyOverlayApp {
                             y: height,
                         };
                         points[3] = Point { x: 0.0, y: height };
+                        let (x, y) = overlay_context.mouse_position();
+                        points[4] =Point {x:x as f32, y:y as f32};
 
                         let mut r = Random::new();
-                        for i in 4..self.settings.points + 4 {
+                        for i in 5..self.settings.points + 5 {
                             points[i] = Point {
                                 x: r.range(0.0, width),
                                 y: r.range(0.0, height),
                             };
                         }
-                        let (x, y) = overlay_context.mouse_position();
-                        let mut r_state = Random::new();
+
                         self.triangles = triangulate(&points, width, height)
                             .iter()
                             .map(|triangle| {
-                                TriangleState::new(triangle, x, y, &mut r_state, &self.settings)
+                                TriangleState::new(triangle, x, y, &mut r, &self.settings)
                             })
                             .collect();
+                        return EventResult::Consumed;
                     }
                 }
             }
