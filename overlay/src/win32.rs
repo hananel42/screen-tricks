@@ -32,6 +32,8 @@ pub(crate) const HTTRANSPARENT_VALUE: isize = -1;
 pub(crate) const AC_SRC_OVER: u8 = 0x00;
 pub(crate) const AC_SRC_ALPHA: u8 = 0x01;
 pub(crate) const ULW_ALPHA: u32 = 0x0000_0002;
+const LLKHF_INJECTED: u32 = 0x00000010;
+const LLMHF_INJECTED: u32 = 0x00000001;
 
 // ============================================================
 // SAFE EVENT API
@@ -114,6 +116,11 @@ static mut STATE_PTR: *mut OverlayState = null_mut();
 unsafe extern "system" fn keyboard_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
         let kb = unsafe { &*(lparam as *const KBDLLHOOKSTRUCT) };
+
+        if (kb.flags & LLKHF_INJECTED) != 0 {
+            return unsafe { CallNextHookEx(null_mut(), code, wparam, lparam) };
+        }
+
         let state = unsafe { &mut *STATE_PTR };
         match wparam as u32 {
             WM_KEYDOWN | WM_SYSKEYDOWN => {
@@ -146,6 +153,11 @@ unsafe extern "system" fn keyboard_hook_proc(code: i32, wparam: WPARAM, lparam: 
 unsafe extern "system" fn mouse_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
         let mouse = unsafe { &*(lparam as *const MSLLHOOKSTRUCT) };
+
+        if (mouse.flags & LLMHF_INJECTED) != 0 {
+            return unsafe { CallNextHookEx(null_mut(), code, wparam, lparam) };
+        }
+
         let state = unsafe { &mut *STATE_PTR };
         match wparam as u32 {
             WM_MOUSEMOVE => {
