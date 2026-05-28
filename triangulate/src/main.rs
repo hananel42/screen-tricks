@@ -263,7 +263,7 @@ impl OverlayApp for MyOverlayApp {
                     0x1B => {
                         overlay_context.close();
                     } //ESC
-                    0x13 => {
+                    0x52 => {
                         self.is_shattered = false;
                         self.captured_image = None;
                         self.triangles.clear();
