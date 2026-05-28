@@ -103,7 +103,6 @@ pub fn render_textured_triangle(
         let y_f = y as f32 + 0.5;
         let dst_row_offset = (y * width) as usize;
 
-
         let x_f = start_x as f32 + 0.5;
         let w0 = ((b.y - c.y) * (x_f - c.x) + (c.x - b.x) * (y_f - c.y)) * inv_den;
         let w1 = ((c.y - a.y) * (x_f - c.x) + (a.x - c.x) * (y_f - c.y)) * inv_den;
@@ -112,14 +111,12 @@ pub fn render_textured_triangle(
         let mut tex_x = w0 * ta.x + w1 * tb.x + w2 * tc.x;
         let mut tex_y = w0 * ta.y + w1 * tb.y + w2 * tc.y;
 
-
         let dw0_dx = (b.y - c.y) * inv_den;
         let dw1_dx = (c.y - a.y) * inv_den;
         let dw2_dx = -dw0_dx - dw1_dx;
 
         let dtex_x = dw0_dx * ta.x + dw1_dx * tb.x + dw2_dx * tc.x;
         let dtex_y = dw0_dx * ta.y + dw1_dx * tb.y + dw2_dx * tc.y;
-
 
         for x in start_x..=end_x {
             let src_x = (tex_x as i32).clamp(0, width - 1);
@@ -133,12 +130,10 @@ pub fn render_textured_triangle(
                 canvas.put_raw_pixel(dst_idx, pixel);
             }
 
-
             tex_x += dtex_x;
             tex_y += dtex_y;
         }
     };
-
 
     if y_b > y_a {
         let slope_ac = (c.x - a.x) / (c.y - a.y);
@@ -154,7 +149,6 @@ pub fn render_textured_triangle(
             draw_scanline(y, x1, x2);
         }
     }
-
 
     if y_c > y_b {
         let slope_ac = (c.x - a.x) / (c.y - a.y);
@@ -266,12 +260,13 @@ impl OverlayApp for MyOverlayApp {
         match event {
             OverlayEvent::KeyDown { vk } => {
                 match vk {
-                    0x1B => {overlay_context.close();} //ESC
-                    0x52 => {
+                    0x1B => {
+                        overlay_context.close();
+                    } //ESC
+                    0x13 => {
                         self.is_shattered = false;
                         self.captured_image = None;
                         self.triangles.clear();
-                        return EventResult::Consumed;
                     } //R
                     _ => {}
                 }
@@ -302,11 +297,13 @@ impl OverlayApp for MyOverlayApp {
                                 y: r.range(0.0, height),
                             };
                         }
-                        let (x,y) = overlay_context.mouse_position();
+                        let (x, y) = overlay_context.mouse_position();
                         let mut r_state = Random::new();
                         self.triangles = triangulate(&points, width, height)
                             .iter()
-                            .map(|triangle| TriangleState::new(triangle, x, y, &mut r_state, &self.settings))
+                            .map(|triangle| {
+                                TriangleState::new(triangle, x, y, &mut r_state, &self.settings)
+                            })
                             .collect();
                     }
                 }
@@ -320,7 +317,6 @@ impl OverlayApp for MyOverlayApp {
     fn update(&mut self, _overlay_context: &mut OverlayContext, delta: f32) {
         if self.is_shattered {
             let gravity = self.settings.gravity;
-
 
             let num_threads = std::thread::available_parallelism()
                 .map(|n| n.get())
@@ -361,7 +357,6 @@ impl OverlayApp for MyOverlayApp {
         }
     }
 }
-
 
 struct Settings {
     gravity: f32,
