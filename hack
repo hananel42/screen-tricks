@@ -16,6 +16,8 @@ $effect = "particles"
 if ($choice -eq '2') { $effect = "wave" }
 if ($choice -eq '3') { $effect = "triangulate" }
 
+Clear-Host
+
 Write-Host "`nLaunching $effect..." -ForegroundColor Green
 
 $url = (Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest").assets | 
