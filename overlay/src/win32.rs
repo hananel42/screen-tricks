@@ -516,6 +516,27 @@ impl OverlayContext {
     /// # Arguments
     /// * `x` - The absolute global desktop x-coordinate pixel destination.
     /// * `y` - The absolute global desktop y-coordinate pixel destination.
+    pub fn set_mouse_position(&self, x: i32, y: i32) {
+        unsafe {
+            SetCursorPos(x, y);
+        }
+    }
+
+
+}
+
+// ============================================================
+// API
+// ============================================================
+
+/// The fundamental trait governing user overlay app runtime bindings.
+/// Implemented by developers to handle events, state steps, and custom drawing loops.
+pub trait OverlayApp {
+    /// Fired exactly once immediately following native window handle binding instantiation.
+    fn init(&mut self, _overlay_context: &mut OverlayContext) {}
+
+    /// Main input dispatcher hook targeted at filtering globally captured mouse/keyboard operations.
+    ///
     /// # Example
     /// ```rust
     /// //trap - Reversing the mouse direction.
@@ -537,26 +558,6 @@ impl OverlayContext {
     ///
     ///
     /// ```
-    pub fn set_mouse_position(&self, x: i32, y: i32) {
-        unsafe {
-            SetCursorPos(x, y);
-        }
-    }
-
-
-}
-
-// ============================================================
-// API
-// ============================================================
-
-/// The fundamental trait governing user overlay app runtime bindings.
-/// Implemented by developers to handle events, state steps, and custom drawing loops.
-pub trait OverlayApp {
-    /// Fired exactly once immediately following native window handle binding instantiation.
-    fn init(&mut self, _overlay_context: &mut OverlayContext) {}
-
-    /// Main input dispatcher hook targeted at filtering globally captured mouse/keyboard operations.
     fn handler(
         &mut self,
         _event: OverlayEvent,
