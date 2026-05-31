@@ -8,7 +8,7 @@ use std::thread;
 
 const PIXEL_SIZE: usize = 4;
 const ITERATIONS: usize = 12;
-const GRAVITY_Y: f32 = 9.8;
+const GRAVITY_Y: f32 = 0.0;
 const DAMPING: f32 = 0.98;
 const STIFFNESS: f32 = 0.95;
 const MAX_DELTA: f32 = 0.02;
