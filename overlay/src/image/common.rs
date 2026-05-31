@@ -37,7 +37,7 @@ pub const fn rgba_unpremul(pixel: u32) -> Color {
     let r = (pixel >> 16) & 0xFF;
     let g = (pixel >> 8) & 0xFF;
     let b = pixel & 0xFF;
-    
+
     let is_zero_mask = ((a == 0) as u32).wrapping_neg();
 
     let divisor = a | (is_zero_mask & 255);

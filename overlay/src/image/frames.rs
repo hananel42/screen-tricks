@@ -589,7 +589,7 @@ pub trait ImageSource {
     unsafe fn get_pixel_unchecked(&self, x: i32, y: i32) -> u32 {
         let idx = self.origin() + (y as usize) * self.stride() + (x as usize);
 
-        unsafe {*self.pixels().get_unchecked(idx)}
+        unsafe { *self.pixels().get_unchecked(idx) }
     }
 }
 
