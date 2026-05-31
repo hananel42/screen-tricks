@@ -32,4 +32,6 @@ mod state;
 mod win32;
 
 pub use canvas::Canvas;
-pub use win32::{EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent, run,get_width,get_height};
+pub use win32::{
+    EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent, get_height, get_width, run,
+};
