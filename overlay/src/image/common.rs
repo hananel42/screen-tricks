@@ -17,6 +17,39 @@ pub const fn rgba_premul(color: Color) -> u32 {
     (a32 << 24) | (r32 << 16) | (g32 << 8) | b32
 }
 
+/// Un-premultiplies a 32-bit packed RGBA pixel (`0xAARRGGBB`) back to straight alpha `Color`.
+///
+/// This function performs a highly optimized, branchless integer-based un-premultiplication.
+/// It avoids slow hardware division instructions by approximating `/ 255` using bitwise shifts,
+/// and handles the zero-alpha edge case safely without branching.
+///
+/// # Arguments
+///
+/// * `pixel` - A packed `u32` containing premultiplied components in `0xAARRGGBB` layout.
+///
+/// # Returns
+///
+/// A `Color` tuple `(r, g, b, a)` representing the straight (un-premultiplied) RGBA values.
+#[inline]
+pub const fn rgba_unpremul(pixel: u32) -> Color {
+    // Extract raw components using bit shifts and masks
+    let a = (pixel >> 24) & 0xFF;
+    let r = (pixel >> 16) & 0xFF;
+    let g = (pixel >> 8) & 0xFF;
+    let b = pixel & 0xFF;
+    
+    let is_zero_mask = ((a == 0) as u32).wrapping_neg();
+
+    let divisor = a | (is_zero_mask & 255);
+    let r_unpremul = ((r * 255) + (divisor >> 1)) / divisor;
+    let g_unpremul = ((g * 255) + (divisor >> 1)) / divisor;
+    let b_unpremul = ((b * 255) + (divisor >> 1)) / divisor;
+    let r_out = if r_unpremul > 255 { 255 } else { r_unpremul } & !is_zero_mask;
+    let g_out = if g_unpremul > 255 { 255 } else { g_unpremul } & !is_zero_mask;
+    let b_out = if b_unpremul > 255 { 255 } else { b_unpremul } & !is_zero_mask;
+
+    (r_out as u8, g_out as u8, b_out as u8, a as u8)
+}
 /// Converts a raw slice of straight RGBA bytes into a packed `u32` integer
 /// using **premultiplied alpha** layout (`0xAARRGGBB`).
 ///

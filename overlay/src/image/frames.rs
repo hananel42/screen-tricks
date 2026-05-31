@@ -566,6 +566,31 @@ pub trait ImageSource {
     fn flip_vertical(&self) -> FrameImage {
         self.view().flip_vertical()
     }
+
+    /// Returns the pixel value at the specified (x, y) coordinates.
+    /// Returns `None` if the coordinates are out of bounds.
+    #[inline]
+    fn get_pixel(&self, x: i32, y: i32) -> Option<u32> {
+        if x < 0 || y < 0 || x >= self.width() || y >= self.height() {
+            return None;
+        }
+
+        let idx = self.origin() + (y as usize) * self.stride() + (x as usize);
+        self.pixels().get(idx).copied()
+    }
+
+    /// Returns the pixel value at the specified (x, y) coordinates without performing bounds checks.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `0 <= x < width` and `0 <= y < height`.
+    /// Calling this with out-of-bounds coordinates results in undefined behavior.
+    #[inline]
+    unsafe fn get_pixel_unchecked(&self, x: i32, y: i32) -> u32 {
+        let idx = self.origin() + (y as usize) * self.stride() + (x as usize);
+
+        unsafe {*self.pixels().get_unchecked(idx)}
+    }
 }
 
 impl ImageSource for FrameImage {
