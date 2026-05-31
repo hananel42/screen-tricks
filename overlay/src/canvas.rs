@@ -478,4 +478,10 @@ impl Canvas {
 
         *dst = (out_a << 24) | (out_r << 16) | (out_g << 8) | out_b;
     }
+
+    pub fn copy_from_slice(&mut self, slice: &[u32]) {
+        unsafe {
+            self.frame_mut().copy_from_slice(slice);
+        }
+    }
 }
