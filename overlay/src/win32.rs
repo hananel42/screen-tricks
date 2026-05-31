@@ -32,6 +32,13 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, SendInput,
 };
 
+pub fn get_width() -> i32{
+    unsafe {GetSystemMetrics(SM_CXVIRTUALSCREEN)}
+}
+pub fn get_height() -> i32{
+    unsafe {GetSystemMetrics(SM_CYVIRTUALSCREEN)}
+}
+
 pub(crate) const SW_SHOWNOACTIVATE: i32 = 4;
 pub(crate) const GWLP_USERDATA: i32 = -21;
 pub(crate) const HTTRANSPARENT_VALUE: isize = -1;
