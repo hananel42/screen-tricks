@@ -119,7 +119,7 @@ impl OverlayApp for App {
         });
     }
 
-    fn render(&mut self, canvas: &mut Canvas) {
+    fn render(&mut self, canvas: &mut impl Canvas) {
         canvas.fill((0, 0, 0, 255));
 
         if let Some(frame) = self.capture.capture() {

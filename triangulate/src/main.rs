@@ -54,7 +54,7 @@ pub fn render_textured_triangle(
     src_image: &impl ImageSource,
     src_tri: Triangle,
     dest_tri: Triangle,
-    canvas: &mut Canvas,
+    canvas: &mut impl Canvas,
 ) {
     let width = src_image.width();
     let height = src_image.height();
@@ -238,7 +238,7 @@ impl TriangleState {
     }
 
     #[inline(always)]
-    pub fn render(&self, canvas: &mut Canvas, frame: &impl ImageSource) {
+    pub fn render(&self, canvas: &mut impl Canvas, frame: &impl ImageSource) {
         render_textured_triangle(frame, self.src_tri, self.pos, canvas);
     }
 }
@@ -348,7 +348,7 @@ impl OverlayApp for MyOverlayApp {
         }
     }
 
-    fn render(&mut self, canvas: &mut Canvas) {
+    fn render(&mut self, canvas: &mut impl Canvas) {
         if !self.is_shattered {
             canvas.clear();
             return;

@@ -1,8 +1,5 @@
 use overlay::image::ImageSource;
-use overlay::{
-    Canvas, EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent,
-    image::capture::CaptureSession, run,
-};
+use overlay::{EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent, image::capture::CaptureSession, run, Canvas};
 use std::sync::{Arc, Barrier};
 use std::thread;
 
@@ -265,7 +262,7 @@ impl OverlayApp for MyOverlayApp {
         }
     }
 
-    fn render(&mut self, canvas: &mut Canvas) {
+    fn render(&mut self, canvas: &mut impl Canvas) {
         canvas.fill((0, 0, 0, 255));
         if let Some(frame) = self.capture_session.capture() {
             let f_width = frame.width() as usize;

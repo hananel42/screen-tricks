@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::OverlayApp;
-use crate::canvas::Canvas;
+use crate::canvas::{Canvas, OverlayCanvas};
 use crate::win32::{
     AC_SRC_ALPHA, AC_SRC_OVER, EventResult, OverlayContext, OverlayEvent, ULW_ALPHA,
 };
@@ -28,18 +28,28 @@ use windows_sys::Win32::{
 /// Internal state manager for a single active overlay window context.
 ///
 /// This struct acts as the core bridge between the OS-level window handle (`HWND`),
-/// the memory-mapped graphics buffer ([`Canvas`]), and the user-defined application logic ([`OverlayApp`]).
+/// the memory-mapped graphics buffer ([`OverlayCanvas`]), and the user-defined application logic ([`OverlayApp`]).
 /// It orchestrates event dispatching, frame updates, and the final presentation to the screen.
+
+pub(crate) trait OverlayAppWithRender:OverlayApp {
+    fn render_to_overlay(&mut self, _canvas: &mut OverlayCanvas);
+}
+impl<T:OverlayApp> OverlayAppWithRender for T {
+    fn render_to_overlay(&mut self, canvas: &mut OverlayCanvas) {
+        self.render(canvas);
+    }
+}
+
 pub(super) struct OverlayState {
     pub(super) hwnd: HWND,
     mem_dc: HDC,
     dib: HBITMAP,
     old_obj: HGDIOBJ,
-    canvas: Canvas,
+    canvas: OverlayCanvas,
     overlay_context: OverlayContext,
     x: i32,
     y: i32,
-    app: Box<dyn OverlayApp>,
+    app: Box<dyn OverlayAppWithRender>,
 }
 
 impl Drop for OverlayState {
@@ -68,7 +78,7 @@ impl OverlayState {
     /// Allocates and initializes a new `OverlayState` context packaged inside a `Box`.
     ///
     /// This sets up an independent GDI Device Context (DC) and maps a 32-bit Device-Independent
-    /// Bitmap (DIB) backing memory block directly to the inner [`Canvas`]. This allows the framework
+    /// Bitmap (DIB) backing memory block directly to the inner [`OverlayCanvas`]. This allows the framework
     /// to support true per-pixel alpha channels needed for seamless transparent overlays.
     ///
     /// # Safety
@@ -82,7 +92,7 @@ impl OverlayState {
         y: i32,
         width: i32,
         height: i32,
-        app: Box<dyn OverlayApp>,
+        app: Box<dyn OverlayAppWithRender>,
     ) -> Option<Box<Self>> {
         let screen_dc = unsafe { GetDC(null_mut()) };
         if screen_dc.is_null() {
@@ -122,12 +132,13 @@ impl OverlayState {
             }
             return None;
         }
-        let canvas = Canvas {
+        let canvas = OverlayCanvas {
             bits: bits as *mut u32,
             len: (width as usize) * (height as usize),
             width,
             height,
         };
+
 
         Some(Box::new(Self {
             hwnd,
@@ -150,7 +161,7 @@ impl OverlayState {
         self.app.handler(overlay_event, &mut self.overlay_context)
     }
     pub(super) fn render(&mut self) {
-        self.app.render(&mut self.canvas);
+        self.app.render_to_overlay(&mut self.canvas);
     }
     pub(super) fn init(&mut self) {
         self.overlay_context.hwnd = self.hwnd;

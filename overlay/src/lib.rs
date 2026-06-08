@@ -9,7 +9,7 @@
 //!
 //! ## Core Architecture Components
 //!
-//! * [`Canvas`]: The main software rendering surface. Houses pixel manipulation buffers, text rasterization, and image blitting.
+//! * [`OverlayCanvas`]: The main software rendering surface. Houses pixel manipulation buffers, text rasterization, and image blitting.
 //! * [`OverlayApp`]: A trait implemented by users to handle core overlay state mutations and receive lifecycle events.
 //! * [`OverlayContext`]: A handle passed to events allowing runtime modification of the window (e.g., closing, resizing, repositioning).
 //! * [`OverlayEvent`]: OS events piped directly into the overlay execution frame loop (e.g., mouse interaction, moving).

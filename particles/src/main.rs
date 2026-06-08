@@ -224,7 +224,7 @@ impl OverlayApp for App {
             });
     }
 
-    fn render(&mut self, canvas: &mut Canvas) {
+    fn render(&mut self, canvas: &mut impl Canvas) {
         canvas.clear();
 
         let dark_h = self.state.revealed_px;

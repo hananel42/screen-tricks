@@ -20,7 +20,7 @@ use windows_sys::Win32::{
 };
 
 use crate::{
-    canvas::Canvas,
+    canvas::OverlayCanvas,
     state::{OverlayState, wide_null},
 };
 use windows_sys::Win32::Foundation::{HINSTANCE, POINT};
@@ -31,6 +31,7 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL,
     MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, SendInput,
 };
+use crate::canvas::Canvas;
 
 pub fn get_width() -> i32 {
     unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) }
@@ -582,7 +583,7 @@ pub trait OverlayApp {
     fn update(&mut self, _overlay_context: &mut OverlayContext, _delta: f32) {}
 
     /// Triggered following logic update completions. Used to draw visuals directly onto the frame memory canvas block.
-    fn render(&mut self, _canvas: &mut Canvas) {}
+    fn render(&mut self, _canvas: &mut impl Canvas) where Self: Sized {}
 
     /// Fired right before the window context resources are unlinked and destroyed by the OS.
     fn shutdown(&mut self, _overlay_context: &mut OverlayContext) {}

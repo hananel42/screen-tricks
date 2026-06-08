@@ -11,7 +11,7 @@
 //! * **`ImageView` / `FrameImage`**: Abstract wrappers representing structured 32-bit pixel surfaces,
 //!   providing continuous slice access for fast scaling, blending, and texture mapping.
 //! * **`ImageSource`**: The unifying trait that abstracts pixel data storage, enabling the
-//!   [`Canvas`](crate::Canvas) engine to read seamlessly from both live captured streams and static assets.
+//!   [`Canvas`](crate::OverlayCanvas) engine to read seamlessly from both live captured streams and static assets.
 
 pub mod capture;
 pub mod common;
