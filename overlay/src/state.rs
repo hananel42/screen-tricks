@@ -40,7 +40,7 @@ impl<T: OverlayApp> OverlayAppWithRender for T {
     }
 }
 
-pub(super) struct OverlayState {
+pub(super) struct OverlayState<A:OverlayAppWithRender> {
     pub(super) hwnd: HWND,
     mem_dc: HDC,
     dib: HBITMAP,
@@ -49,10 +49,10 @@ pub(super) struct OverlayState {
     overlay_context: OverlayContext,
     x: i32,
     y: i32,
-    app: Box<dyn OverlayAppWithRender>,
+    app: A,
 }
 
-impl Drop for OverlayState {
+impl<A:OverlayAppWithRender> Drop for OverlayState<A> {
     fn drop(&mut self) {
         unsafe {
             if !self.mem_dc.is_null() && !self.old_obj.is_null() {
@@ -74,7 +74,21 @@ pub(crate) fn wide_null(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-impl OverlayState {
+
+
+pub(crate) trait EventsHandler {
+    fn handle(&mut self,event:OverlayEvent) -> EventResult;
+}
+
+impl<T:OverlayAppWithRender> EventsHandler for OverlayState<T> {
+    #[inline(always)]
+    fn handle(&mut self, event:OverlayEvent) -> EventResult {
+        self.app.handler(event, &mut self.overlay_context)
+    }
+}
+
+
+impl<A:OverlayAppWithRender> OverlayState<A> {
     /// Allocates and initializes a new `OverlayState` context packaged inside a `Box`.
     ///
     /// This sets up an independent GDI Device Context (DC) and maps a 32-bit Device-Independent
@@ -92,7 +106,7 @@ impl OverlayState {
         y: i32,
         width: i32,
         height: i32,
-        app: Box<dyn OverlayAppWithRender>,
+        app: A,
     ) -> Option<Box<Self>> {
         let screen_dc = unsafe { GetDC(null_mut()) };
         if screen_dc.is_null() {

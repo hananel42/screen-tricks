@@ -20,10 +20,7 @@ use windows_sys::Win32::{
 };
 
 use crate::canvas::Canvas;
-use crate::{
-    canvas::OverlayCanvas,
-    state::{OverlayState, wide_null},
-};
+pub(crate) use crate::{canvas::OverlayCanvas, state::{OverlayState, wide_null}, EventResult, MouseButton, OverlayEvent};
 use windows_sys::Win32::Foundation::{HINSTANCE, POINT};
 use windows_sys::Win32::Graphics::Gdi::UpdateWindow;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -32,6 +29,8 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL,
     MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, SendInput,
 };
+use crate::events::HANDLER_PTR;
+use crate::state::EventsHandler;
 
 pub fn get_width() -> i32 {
     unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) }
@@ -46,218 +45,17 @@ pub(crate) const HTTRANSPARENT_VALUE: isize = -1;
 pub(crate) const AC_SRC_OVER: u8 = 0x00;
 pub(crate) const AC_SRC_ALPHA: u8 = 0x01;
 pub(crate) const ULW_ALPHA: u32 = 0x0000_0002;
-const LLKHF_INJECTED: u32 = 0x00000010;
-const LLMHF_INJECTED: u32 = 0x00000001;
+pub(crate) const LLKHF_INJECTED: u32 = 0x00000010;
+pub(crate) const LLMHF_INJECTED: u32 = 0x00000001;
 
-// ============================================================
-// SAFE EVENT API
-// ============================================================
 
-/// Dictates how an input event should be processed after being intercepted by the overlay.
-#[derive(Eq, PartialEq, Copy, Clone)]
-pub enum EventResult {
-    /// The event is consumed by the overlay application. It will **not** be passed down
-    /// to the underlying windows or applications (swallowed input).
-    Consumed,
-    /// The event is ignored or partially reacted to, allowing it to propagate normally
-    /// through the OS down to target foreground applications.
-    Propagated,
-}
 
-/// Identifies standard hardware mouse button mappings.
-#[derive(Clone, Copy, Debug)]
-pub enum MouseButton {
-    /// Left mouse button.
-    Left,
-    /// Right mouse button.
-    Right,
-    /// Middle wheel click mouse button.
-    Middle,
-    /// Extended side button 1.
-    X1,
-    /// Extended side button 2.
-    X2,
-}
-
-/// A unified event container representing structural asynchronous hardware input events.
-#[derive(Clone, Copy, Debug)]
-pub enum OverlayEvent {
-    /// A keyboard button pressed state trigger.
-    KeyDown {
-        /// The virtual key code identifier (e.g., `VK_ESCAPE`, `0x41` for 'A').
-        vk: u32,
-    },
-
-    /// A keyboard button released state trigger.
-    KeyUp {
-        /// The virtual key code identifier.
-        vk: u32,
-    },
-
-    /// Absolute hardware cursor position motion coordinates tracking.
-    MouseMove {
-        /// Global desktop x-coordinate position.
-        x: i32,
-        /// Global desktop y-coordinate position.
-        y: i32,
-    },
-
-    /// A mouse button pressed state trigger.
-    MouseDown {
-        /// The specific mouse button triggered.
-        button: MouseButton,
-    },
-
-    /// A mouse button released state trigger.
-    MouseUp {
-        /// The specific mouse button released.
-        button: MouseButton,
-    },
-
-    /// Vertical mouse wheel scrolling rotation delta tracker.
-    MouseWheel {
-        /// Rotation wheel travel step value (multiples of standard 120 units).
-        delta: i16,
-    },
-}
-
-static mut STATE_PTR: *mut OverlayState = null_mut();
-
-// ============================================================
-// KEYBOARD HOOK
-// ============================================================
-
-unsafe extern "system" fn keyboard_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    if code >= 0 {
-        let kb = unsafe { &*(lparam as *const KBDLLHOOKSTRUCT) };
-
-        if (kb.flags & LLKHF_INJECTED) != 0 {
-            return unsafe { CallNextHookEx(null_mut(), code, wparam, lparam) };
-        }
-
-        let state = unsafe { &mut *STATE_PTR };
-        match wparam as u32 {
-            WM_KEYDOWN | WM_SYSKEYDOWN => {
-                if state.handle_event(OverlayEvent::KeyDown { vk: kb.vkCode })
-                    == EventResult::Consumed
-                {
-                    return 1;
-                }
-            }
-
-            WM_KEYUP | WM_SYSKEYUP => {
-                if state.handle_event(OverlayEvent::KeyUp { vk: kb.vkCode })
-                    == EventResult::Consumed
-                {
-                    return 1;
-                }
-            }
-
-            _ => {}
-        }
-    }
-
-    unsafe { CallNextHookEx(null_mut(), code, wparam, lparam) }
-}
-
-// ============================================================
-// MOUSE HOOK
-// ============================================================
-
-unsafe extern "system" fn mouse_hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    if code >= 0 {
-        let mouse = unsafe { &*(lparam as *const MSLLHOOKSTRUCT) };
-
-        if (mouse.flags & LLMHF_INJECTED) != 0 {
-            return unsafe { CallNextHookEx(null_mut(), code, wparam, lparam) };
-        }
-
-        let state = unsafe { &mut *STATE_PTR };
-        match wparam as u32 {
-            WM_MOUSEMOVE => {
-                if state.handle_event(OverlayEvent::MouseMove {
-                    x: mouse.pt.x,
-                    y: mouse.pt.y,
-                }) == EventResult::Consumed
-                {
-                    return 1;
-                }
-            }
-
-            WM_LBUTTONDOWN => {
-                if state.handle_event(OverlayEvent::MouseDown {
-                    button: MouseButton::Left,
-                }) == EventResult::Consumed
-                {
-                    return 1;
-                }
-            }
-
-            WM_LBUTTONUP => {
-                if state.handle_event(OverlayEvent::MouseUp {
-                    button: MouseButton::Left,
-                }) == EventResult::Consumed
-                {
-                    return 1;
-                }
-            }
-
-            WM_RBUTTONDOWN => {
-                if state.handle_event(OverlayEvent::MouseDown {
-                    button: MouseButton::Right,
-                }) == EventResult::Consumed
-                {
-                    return 1;
-                }
-            }
-
-            WM_RBUTTONUP => {
-                if state.handle_event(OverlayEvent::MouseUp {
-                    button: MouseButton::Right,
-                }) == EventResult::Consumed
-                {
-                    return 1;
-                }
-            }
-
-            WM_MBUTTONDOWN => {
-                if state.handle_event(OverlayEvent::MouseDown {
-                    button: MouseButton::Middle,
-                }) == EventResult::Consumed
-                {
-                    return 1;
-                }
-            }
-
-            WM_MBUTTONUP => {
-                if state.handle_event(OverlayEvent::MouseUp {
-                    button: MouseButton::Middle,
-                }) == EventResult::Consumed
-                {
-                    return 1;
-                }
-            }
-
-            WM_MOUSEWHEEL => {
-                let delta = ((mouse.mouseData >> 16) & 0xffff) as i16;
-
-                if state.handle_event(OverlayEvent::MouseWheel { delta }) == EventResult::Consumed {
-                    return 1;
-                }
-            }
-
-            _ => {}
-        }
-    }
-
-    unsafe { CallNextHookEx(null_mut(), code, wparam, lparam) }
-}
 
 // ============================================================
 // WINDOW PROC
 // ============================================================
 
-unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+unsafe extern "system" fn wndproc<A:OverlayApp>(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         WM_NCCREATE => {
             let createstruct = lparam as *const CREATESTRUCTW;
@@ -266,7 +64,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
                 return 0;
             }
 
-            let state = unsafe { *createstruct }.lpCreateParams as *mut OverlayState;
+            let state = unsafe { *createstruct }.lpCreateParams as *mut OverlayState<A>;
 
             if state.is_null() {
                 return 0;
@@ -603,7 +401,7 @@ pub trait OverlayApp {
 ///
 /// This call actively hijacks execution flow focus limits on the caller thread to loop structural
 /// window polling hooks until structural `WM_QUIT` actions occur.
-pub fn run(app: impl OverlayApp + 'static) {
+pub fn run<A:OverlayApp + 'static>(app: A ) {
     unsafe {
         SetProcessDPIAware();
 
@@ -625,7 +423,7 @@ pub fn run(app: impl OverlayApp + 'static) {
 
         wc.style = CS_HREDRAW | CS_VREDRAW;
 
-        wc.lpfnWndProc = Some(wndproc);
+        wc.lpfnWndProc = Some(wndproc::<A>);
 
         wc.hInstance = hinstance;
 
@@ -651,14 +449,16 @@ pub fn run(app: impl OverlayApp + 'static) {
 
         let height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 
-        let state = match OverlayState::new(0 as HWND, x, y, width, height, Box::new(app)) {
+        let mut state = match OverlayState::new(0 as HWND, x, y, width, height, app) {
             Some(s) => s,
             None => return,
         };
 
+        let handler_ptr = std::ptr::addr_of_mut!(HANDLER_PTR);
+        (*handler_ptr).register(&mut state);
         let state_ptr = Box::into_raw(state);
 
-        STATE_PTR = state_ptr;
+
 
         // ====================================
         // CREATE WINDOW
@@ -692,19 +492,7 @@ pub fn run(app: impl OverlayApp + 'static) {
         // INSTALL HOOKS
         // ====================================
 
-        let keyboard_hook = SetWindowsHookExW(
-            WH_KEYBOARD_LL,
-            Some(keyboard_hook_proc),
-            hinstance as HINSTANCE,
-            0,
-        );
-
-        let mouse_hook = SetWindowsHookExW(
-            WH_MOUSE_LL,
-            Some(mouse_hook_proc),
-            hinstance as HINSTANCE,
-            0,
-        );
+        (*handler_ptr).start();
 
         // ====================================
         // INITIAL PRESENT
@@ -764,13 +552,7 @@ pub fn run(app: impl OverlayApp + 'static) {
         // CLEANUP
         // ====================================
 
-        if !keyboard_hook.is_null() {
-            UnhookWindowsHookEx(keyboard_hook);
-        }
-
-        if !mouse_hook.is_null() {
-            UnhookWindowsHookEx(mouse_hook);
-        }
+        (*handler_ptr).stop();
 
         let _ = Box::from_raw(state_ptr);
     }
