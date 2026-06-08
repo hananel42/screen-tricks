@@ -20,7 +20,13 @@ use windows_sys::Win32::{
 };
 
 use crate::canvas::Canvas;
-pub(crate) use crate::{canvas::OverlayCanvas, state::{OverlayState, wide_null}, EventResult, MouseButton, OverlayEvent};
+use crate::events::HANDLER_PTR;
+use crate::state::EventsHandler;
+pub(crate) use crate::{
+    EventResult, MouseButton, OverlayEvent,
+    canvas::OverlayCanvas,
+    state::{OverlayState, wide_null},
+};
 use windows_sys::Win32::Foundation::{HINSTANCE, POINT};
 use windows_sys::Win32::Graphics::Gdi::UpdateWindow;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -29,8 +35,6 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL,
     MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, MOUSEINPUT, SendInput,
 };
-use crate::events::HANDLER_PTR;
-use crate::state::EventsHandler;
 
 pub fn get_width() -> i32 {
     unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) }
@@ -48,14 +52,16 @@ pub(crate) const ULW_ALPHA: u32 = 0x0000_0002;
 pub(crate) const LLKHF_INJECTED: u32 = 0x00000010;
 pub(crate) const LLMHF_INJECTED: u32 = 0x00000001;
 
-
-
-
 // ============================================================
 // WINDOW PROC
 // ============================================================
 
-unsafe extern "system" fn wndproc<A:OverlayApp>(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+unsafe extern "system" fn wndproc<A: OverlayApp>(
+    hwnd: HWND,
+    msg: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
     match msg {
         WM_NCCREATE => {
             let createstruct = lparam as *const CREATESTRUCTW;
@@ -401,7 +407,7 @@ pub trait OverlayApp {
 ///
 /// This call actively hijacks execution flow focus limits on the caller thread to loop structural
 /// window polling hooks until structural `WM_QUIT` actions occur.
-pub fn run<A:OverlayApp + 'static>(app: A ) {
+pub fn run<A: OverlayApp + 'static>(app: A) {
     unsafe {
         SetProcessDPIAware();
 
@@ -457,8 +463,6 @@ pub fn run<A:OverlayApp + 'static>(app: A ) {
         let handler_ptr = std::ptr::addr_of_mut!(HANDLER_PTR);
         (*handler_ptr).register(&mut state);
         let state_ptr = Box::into_raw(state);
-
-
 
         // ====================================
         // CREATE WINDOW

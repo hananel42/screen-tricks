@@ -2,12 +2,17 @@
 // KEYBOARD HOOK
 // ============================================================
 
+use crate::state::{OverlayAppWithRender, OverlayState};
 use std::ffi::c_void;
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows_sys::Win32::UI::WindowsAndMessaging::{CallNextHookEx, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, MSLLHOOKSTRUCT, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDOWN, WM_RBUTTONUP, WM_SYSKEYDOWN, WM_SYSKEYUP};
-use crate::state::{OverlayAppWithRender, OverlayState};
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    CallNextHookEx, HHOOK, KBDLLHOOKSTRUCT, MSLLHOOKSTRUCT, SetWindowsHookExW, UnhookWindowsHookEx,
+    WH_KEYBOARD_LL, WH_MOUSE_LL, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP,
+    WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDOWN, WM_RBUTTONUP,
+    WM_SYSKEYDOWN, WM_SYSKEYUP,
+};
 
 // ============================================================
 // SAFE EVENT API
@@ -202,7 +207,9 @@ unsafe extern "system" fn mouse_hook_proc(code: i32, wparam: WPARAM, lparam: LPA
             WM_MOUSEWHEEL => {
                 let delta = ((mouse.mouseData >> 16) & 0xffff) as i16;
 
-                if (*handler).handle_event(OverlayEvent::MouseWheel { delta }) == EventResult::Consumed {
+                if (*handler).handle_event(OverlayEvent::MouseWheel { delta })
+                    == EventResult::Consumed
+                {
                     return 1;
                 }
             }
@@ -230,7 +237,7 @@ impl Handler {
         // פונקציית הגישור שמקבלת את הטיפוס הגנרי הנכון ומפעילה אותו במהירות סטטית (Inlined)
         fn trampoline_event<A: OverlayAppWithRender>(
             app_ptr: *mut c_void,
-            event: OverlayEvent
+            event: OverlayEvent,
         ) -> EventResult {
             unsafe {
                 let state = &mut *(app_ptr as *mut OverlayState<A>);
@@ -275,11 +282,15 @@ impl Handler {
 
     pub(crate) fn stop(&mut self) {
         if let Some(h) = self.mouse_hook {
-            unsafe { UnhookWindowsHookEx(h); }
+            unsafe {
+                UnhookWindowsHookEx(h);
+            }
         }
 
         if let Some(h) = self.keyboard_hook {
-            unsafe { UnhookWindowsHookEx(h); }
+            unsafe {
+                UnhookWindowsHookEx(h);
+            }
         }
     }
 }
