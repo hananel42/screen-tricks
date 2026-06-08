@@ -9,7 +9,10 @@
 //! The application handles mouse input, keyboard input (ESC), and continuous updates to simulate motion.
 //! The captured video frame is rendered at the current position with size constraints.
 
-use overlay::{EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent, image::capture::CaptureSession, run, Canvas};
+use overlay::{
+    Canvas, EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent,
+    image::capture::CaptureSession, run,
+};
 
 struct MyOverlayApp {
     capture_session: CaptureSession,

@@ -31,10 +31,10 @@ use windows_sys::Win32::{
 /// the memory-mapped graphics buffer ([`OverlayCanvas`]), and the user-defined application logic ([`OverlayApp`]).
 /// It orchestrates event dispatching, frame updates, and the final presentation to the screen.
 
-pub(crate) trait OverlayAppWithRender:OverlayApp {
+pub(crate) trait OverlayAppWithRender: OverlayApp {
     fn render_to_overlay(&mut self, _canvas: &mut OverlayCanvas);
 }
-impl<T:OverlayApp> OverlayAppWithRender for T {
+impl<T: OverlayApp> OverlayAppWithRender for T {
     fn render_to_overlay(&mut self, canvas: &mut OverlayCanvas) {
         self.render(canvas);
     }
@@ -138,7 +138,6 @@ impl OverlayState {
             width,
             height,
         };
-
 
         Some(Box::new(Self {
             hwnd,

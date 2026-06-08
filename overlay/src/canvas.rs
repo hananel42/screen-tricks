@@ -11,8 +11,6 @@ use crate::image::common::*;
 use crate::image::frames::ImageSource;
 use font8x8::{BASIC_FONTS, UnicodeFonts};
 
-
-
 pub trait Canvas {
     /// Returns the active pixel width of the canvas surface.
     fn width(&self) -> i32;
@@ -20,7 +18,7 @@ pub trait Canvas {
     fn height(&self) -> i32;
 
     /// Clears the entire canvas back to a fully transparent state (`0x00000000`).
-    fn clear(&mut self) { 
+    fn clear(&mut self) {
         self.frame_mut().fill(0);
     }
 
@@ -42,9 +40,7 @@ pub trait Canvas {
         let frame = self.frame_mut();
         let dst = &mut frame[idx];
         Self::blend_pixel(dst, rgba_premul(color));
-    
     }
-
 
     /// Performs a high-accuracy, 32-bit software alpha blend overlay calculation over a single pixel location.
     /// Utilizes the rounding equation `(value * inv + 127) / 255`.
@@ -75,7 +71,6 @@ pub trait Canvas {
 
         *dst = (out_a << 24) | (out_r << 16) | (out_g << 8) | out_b;
     }
-
 
     /// Writes a raw pixel color directly to the frame buffer at the specified sequential index.
     ///
@@ -109,7 +104,6 @@ pub trait Canvas {
         }
     }
 
-
     /// Completely clears a structural sub-region rectangle back to transparent (`0x00000000`).
     ///
     /// Optimized via vectorized chunk slice filling (`fill(0)`).
@@ -138,9 +132,7 @@ pub trait Canvas {
 
             frame[start..end].fill(0);
         }
-    
     }
-
 
     /// Fills a bounded rectangular coordinates zone with a uniform color.
     ///
@@ -163,9 +155,9 @@ pub trait Canvas {
         if x0 >= x1 || y0 >= y1 {
             return;
         }
-        
+
         let width = width as usize;
-    
+
         let frame = self.frame_mut();
         if alpha == 255 {
             for yy in y0..y1 {
@@ -183,14 +175,11 @@ pub trait Canvas {
                 }
             }
         }
-    
     }
 
     /// Uniformly floods the entire canvas layout using a single solid color.
     fn fill(&mut self, color: Color) {
-        
         self.frame_mut().fill(rgba_premul(color));
-        
     }
 
     /// Draws a single character glyph using an 8x8 bitmap font structure.
@@ -283,7 +272,6 @@ pub trait Canvas {
 
         let dst_stride = self.width() as usize;
 
-    
         let frame = self.frame_mut();
 
         let step_x = ((src_w as i64) << 16) / (dst_w as i64);
@@ -314,21 +302,17 @@ pub trait Canvas {
             }
         }
     }
-    
+
     /// Draws an asset on the canvas at raw native scale dimensions.
     #[inline]
     fn draw_image<T: ImageSource + ?Sized>(&mut self, img: &T, dst_x: i32, dst_y: i32) {
         self.draw_image_scaled(img, dst_x, dst_y, img.width(), img.height());
     }
 
-
-    fn copy_from_slice(&mut self, slice: &[u32]) { 
+    fn copy_from_slice(&mut self, slice: &[u32]) {
         self.frame_mut().copy_from_slice(slice);
     }
-    
 }
-
-
 
 /// A 2D flat bitmap surface for fast pixel rendering and composition.
 ///
@@ -352,7 +336,7 @@ impl Canvas for OverlayCanvas {
     fn height(&self) -> i32 {
         self.height
     }
-    
+
     /// Accesses the continuous underlying mutable frame memory buffer.
     fn frame_mut(&mut self) -> &mut [u32] {
         unsafe { slice::from_raw_parts_mut(self.bits, self.len) }

@@ -1,5 +1,8 @@
 use overlay::image::ImageSource;
-use overlay::{EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent, image::capture::CaptureSession, run, Canvas};
+use overlay::{
+    Canvas, EventResult, MouseButton, OverlayApp, OverlayContext, OverlayEvent,
+    image::capture::CaptureSession, run,
+};
 use std::sync::{Arc, Barrier};
 use std::thread;
 
